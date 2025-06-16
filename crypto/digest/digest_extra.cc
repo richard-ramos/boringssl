@@ -23,6 +23,7 @@
 #include <openssl/nid.h>
 #include <openssl/obj.h>
 #include <openssl/sha.h>
+#include <openssl/span.h>
 
 #include "../asn1/internal.h"
 #include "../fipsmodule/digest/internal.h"
@@ -102,42 +103,41 @@ static const struct {
     {{0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04}, 9, NID_sha224},
 };
 
-static const EVP_MD *cbs_to_md(const CBS *cbs) {
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kMDOIDs); i++) {
-    if (CBS_len(cbs) == kMDOIDs[i].oid_len &&
-        OPENSSL_memcmp(CBS_data(cbs), kMDOIDs[i].oid, kMDOIDs[i].oid_len) ==
-            0) {
-      return EVP_get_digestbynid(kMDOIDs[i].nid);
+static int cbs_to_digest_nid(const CBS *cbs) {
+  for (const auto &md : kMDOIDs) {
+    if (bssl::Span<const uint8_t>(*cbs) ==
+        bssl::Span(md.oid).first(md.oid_len)) {
+      return md.nid;
     }
   }
-
-  return NULL;
+  return NID_undef;
 }
 
 const EVP_MD *EVP_get_digestbyobj(const ASN1_OBJECT *obj) {
-  // Handle objects with no corresponding OID. Note we don't use |OBJ_obj2nid|
-  // here to avoid pulling in the OID table.
-  if (obj->nid != NID_undef) {
-    return EVP_get_digestbynid(obj->nid);
+  int nid = obj->nid;
+  if (nid == NID_undef) {
+    // Handle objects with no saved NID. Note we don't use |OBJ_obj2nid| here to
+    // avoid pulling in the OID table.
+    CBS cbs;
+    CBS_init(&cbs, OBJ_get0_data(obj), OBJ_length(obj));
+    nid = cbs_to_digest_nid(&cbs);
   }
 
-  CBS cbs;
-  CBS_init(&cbs, OBJ_get0_data(obj), OBJ_length(obj));
-  return cbs_to_md(&cbs);
+  return nid == NID_undef ? nullptr : EVP_get_digestbynid(nid);
 }
 
-const EVP_MD *EVP_parse_digest_algorithm(CBS *cbs) {
+int EVP_parse_digest_algorithm_nid(CBS *cbs) {
   CBS algorithm, oid;
   if (!CBS_get_asn1(cbs, &algorithm, CBS_ASN1_SEQUENCE) ||
       !CBS_get_asn1(&algorithm, &oid, CBS_ASN1_OBJECT)) {
     OPENSSL_PUT_ERROR(DIGEST, DIGEST_R_DECODE_ERROR);
-    return NULL;
+    return NID_undef;
   }
 
-  const EVP_MD *ret = cbs_to_md(&oid);
-  if (ret == NULL) {
+  int ret = cbs_to_digest_nid(&oid);
+  if (ret == NID_undef) {
     OPENSSL_PUT_ERROR(DIGEST, DIGEST_R_UNKNOWN_HASH);
-    return NULL;
+    return NID_undef;
   }
 
   // The parameters, if present, must be NULL. Historically, whether the NULL
@@ -150,11 +150,19 @@ const EVP_MD *EVP_parse_digest_algorithm(CBS *cbs) {
         CBS_len(&param) != 0 ||  //
         CBS_len(&algorithm) != 0) {
       OPENSSL_PUT_ERROR(DIGEST, DIGEST_R_DECODE_ERROR);
-      return NULL;
+      return NID_undef;
     }
   }
 
   return ret;
+}
+
+const EVP_MD *EVP_parse_digest_algorithm(CBS *cbs) {
+  int nid = EVP_parse_digest_algorithm_nid(cbs);
+  if (nid == NID_undef) {
+    return nullptr;
+  }
+  return EVP_get_digestbynid(nid);
 }
 
 static int marshal_digest_algorithm(CBB *cbb, const EVP_MD *md,
