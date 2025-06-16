@@ -172,6 +172,43 @@ OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ed25519(void);
 // request |EVP_pkey_dsa|, we could change that.
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_dsa(void);
 
+// EVP_pkey_rsa_pss_sha256 implements RSASSA-PSS keys, encoded as id-RSASSA-PSS
+// (RFC 4055, Section 3.1). The |EVP_PKEY_id| value is |EVP_PKEY_RSA_PSS|. This
+// |EVP_PKEY_ALG| only accepts keys whose parameters specify:
+//
+//  - A hashAlgorithm of SHA-256
+//  - A maskGenAlgorithm of MGF1 with SHA-256
+//  - A minimum saltLength of 32
+//  - A trailerField of one (must be omitted in the encoding)
+//
+// Keys of this type will only be usable with RSASSA-PSS with matching signature
+// parameters.
+//
+// This algorithm type is not recommended. The id-RSASSA-PSS key type is not
+// widely implemented. Using it negates any compatibility benefits of using RSA.
+// More modern algorithms like ECDSA are more performant and more compatible
+// than id-RSASSA-PSS keys. This key type also adds significant complexity to a
+// system. It has a wide range of possible parameter sets, so any uses must
+// ensure all components not only support id-RSASSA-PSS, but also the specific
+// parameters chosen.
+//
+// Note the id-RSASSA-PSS key type is distinct from the RSASSA-PSS signature
+// algorithm. The widely implemented id-rsaEncryption key type (|EVP_pkey_rsa|
+// and |EVP_PKEY_RSA|) also supports RSASSA-PSS signatures.
+//
+// WARNING: Any |EVP_PKEY|s produced by this algorithm will return a non-NULL
+// |RSA| object through |EVP_PKEY_get1_RSA| and |EVP_PKEY_get0_RSA|. This is
+// dangerous as existing code may assume a non-NULL return implies the more
+// common id-rsaEncryption key. Additionally, the operations on the underlying
+// |RSA| object will not capture the RSA-PSS constraints, so callers risk
+// misusing the key by calling these functions. Callers using this algorithm
+// must use |EVP_PKEY_id| to distinguish |EVP_PKEY_RSA| and |EVP_PKEY_RSA_PSS|.
+//
+// WARNING: BoringSSL does not currently implement |RSA_get0_pss_params| with
+// these keys. Callers that require this functionality should contact the
+// BoringSSL team.
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha256(void);
+
 
 // Getting and setting concrete key types.
 //
@@ -187,6 +224,18 @@ OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_dsa(void);
 // non-mutating for thread-safety purposes, but mutating functions on the
 // returned lower-level objects are considered to also mutate the |EVP_PKEY| and
 // may not be called concurrently with other operations on the |EVP_PKEY|.
+//
+// WARNING: Matching OpenSSL, the RSA functions behave non-uniformly.
+// |EVP_PKEY_set1_RSA| and |EVP_PKEY_assign_RSA| construct an |EVP_PKEY_RSA|
+// key, while the |EVP_PKEY_get0_RSA| and |EVP_PKEY_get1_RSA| will return
+// non-NULL for both |EVP_PKEY_RSA| and |EVP_PKEY_RSA_PSS|.
+//
+// This means callers risk misusing a key if they assume a non-NULL return from
+// |EVP_PKEY_get0_RSA| or |EVP_PKEY_get1_RSA| implies |EVP_PKEY_RSA|. Prefer
+// |EVP_PKEY_id| to check the type of a key. To reduce this risk, BoringSSL does
+// not make |EVP_PKEY_RSA_PSS| available by default, only when callers opt in
+// via |EVP_pkey_rsa_pss_sha256|. This differs from upstream OpenSSL, where
+// callers are exposed to |EVP_PKEY_RSA_PSS| by default.
 
 OPENSSL_EXPORT int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key);
 OPENSSL_EXPORT int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key);
