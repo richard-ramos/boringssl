@@ -44,6 +44,11 @@ var (
 	oidSHA256WithRSAEncryption = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}
 	oidECDSAWithSHA256         = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}
 	oidEd25519                 = asn1.ObjectIdentifier{1, 3, 101, 112}
+	oidPSS                     = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 10}
+
+	oidSHA256 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
+
+	oidMGF1 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 8}
 
 	oidSubjectKeyID     = []int{2, 5, 29, 14}
 	oidKeyUsage         = []int{2, 5, 29, 15}
@@ -148,6 +153,37 @@ func addASN1ImplicitString(bb *cryptobyte.Builder, tag cbasn1.Tag, b []byte) {
 	bb.AddASN1(tag, func(child *cryptobyte.Builder) { child.AddBytes(b) })
 }
 
+func addASN1ExplicitTag(bb *cryptobyte.Builder, outerTag, innerTag cbasn1.Tag, cb func(*cryptobyte.Builder)) {
+	bb.AddASN1(outerTag.Constructed().ContextSpecific(), func(child *cryptobyte.Builder) {
+		child.AddASN1(innerTag, cb)
+	})
+}
+
+func addRSAPSSSubjectPublicKeyInfo(bb *cryptobyte.Builder, key *rsa.PublicKey) {
+	bb.AddASN1(cbasn1.SEQUENCE, func(spki *cryptobyte.Builder) {
+		spki.AddASN1(cbasn1.SEQUENCE, func(algID *cryptobyte.Builder) {
+			algID.AddASN1ObjectIdentifier(oidPSS)
+			algID.AddASN1(cbasn1.SEQUENCE, func(params *cryptobyte.Builder) {
+				addASN1ExplicitTag(params, 0, cbasn1.SEQUENCE, func(hash *cryptobyte.Builder) {
+					hash.AddASN1ObjectIdentifier(oidSHA256)
+					hash.AddASN1NULL()
+				})
+				addASN1ExplicitTag(params, 1, cbasn1.SEQUENCE, func(mgf *cryptobyte.Builder) {
+					mgf.AddASN1ObjectIdentifier(oidMGF1)
+					mgf.AddASN1(cbasn1.SEQUENCE, func(hash *cryptobyte.Builder) {
+						hash.AddASN1ObjectIdentifier(oidSHA256)
+						hash.AddASN1NULL()
+					})
+				})
+				params.AddASN1(cbasn1.Tag(2).Constructed().ContextSpecific(), func(saltLen *cryptobyte.Builder) {
+					saltLen.AddASN1Uint64(32)
+				})
+			})
+		})
+		spki.AddASN1BitString(x509.MarshalPKCS1PublicKey(key))
+	})
+}
+
 type X509Info struct {
 	PrivateKey         crypto.Signer
 	Name               pkix.Name
@@ -156,6 +192,12 @@ type X509Info struct {
 	SubjectKeyID       []byte
 	KeyUsage           x509.KeyUsage
 	SignatureAlgorithm X509SignatureAlgorithm
+	// EncodeSPKIAsRSAPSS, if true, causes the subjectPublicKeyInfo field to be
+	// encoded as id-RSASSA-PSS with SHA-256 parameters, instead of
+	// id-rsaEncryption. This is sufficient for our purposes because we do not
+	// need real id-RSASSA-PSS support in the test runner. If we ever to, we
+	// can replace this with a real PSSPrivateKey type.
+	EncodeSPKIAsRSAPSS bool
 }
 
 type X509ChainBuilder struct {
@@ -221,86 +263,88 @@ func (issuer *X509ChainBuilder) Issue(subject X509Info) *X509ChainBuilder {
 			return
 		}
 		tbs.AddBytes(subjectDER)
-		spki, err := x509.MarshalPKIXPublicKey(subject.PrivateKey.Public())
-		if err != nil {
-			tbs.SetError(err)
-			return
+		if subject.EncodeSPKIAsRSAPSS {
+			addRSAPSSSubjectPublicKeyInfo(tbs, subject.PrivateKey.Public().(*rsa.PublicKey))
+		} else {
+			spki, err := x509.MarshalPKIXPublicKey(subject.PrivateKey.Public())
+			if err != nil {
+				tbs.SetError(err)
+				return
+			}
+			tbs.AddBytes(spki)
 		}
-		tbs.AddBytes(spki)
-		tbs.AddASN1(cbasn1.Tag(3).Constructed().ContextSpecific(), func(extsWrapper *cryptobyte.Builder) {
-			extsWrapper.AddASN1(cbasn1.SEQUENCE, func(exts *cryptobyte.Builder) {
-				if len(issuer.subjectKeyID) != 0 {
-					exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
-						ext.AddASN1ObjectIdentifier(oidAuthorityKeyID)
-						ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
-							extVal.AddASN1(cbasn1.SEQUENCE, func(akid *cryptobyte.Builder) {
-								addASN1ImplicitString(akid, cbasn1.Tag(0).ContextSpecific(), issuer.subjectKeyID)
-							})
+		addASN1ExplicitTag(tbs, 3, cbasn1.SEQUENCE, func(exts *cryptobyte.Builder) {
+			if len(issuer.subjectKeyID) != 0 {
+				exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
+					ext.AddASN1ObjectIdentifier(oidAuthorityKeyID)
+					ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
+						extVal.AddASN1(cbasn1.SEQUENCE, func(akid *cryptobyte.Builder) {
+							addASN1ImplicitString(akid, cbasn1.Tag(0).ContextSpecific(), issuer.subjectKeyID)
 						})
 					})
-				}
+				})
+			}
 
-				if subject.KeyUsage != 0 {
-					exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
-						ext.AddASN1ObjectIdentifier(oidKeyUsage)
-						ext.AddASN1Boolean(true) // critical
-						ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
-							var b [2]byte
-							// DER orders the bits from most to least significant.
-							b[0] = bits.Reverse8(byte(subject.KeyUsage))
-							b[1] = bits.Reverse8(byte(subject.KeyUsage >> 8))
-							// If the final byte is all zeros, skip it.
-							var ku asn1.BitString
-							if b[1] == 0 {
-								ku.Bytes = b[:1]
-							} else {
-								ku.Bytes = b[:]
+			if subject.KeyUsage != 0 {
+				exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
+					ext.AddASN1ObjectIdentifier(oidKeyUsage)
+					ext.AddASN1Boolean(true) // critical
+					ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
+						var b [2]byte
+						// DER orders the bits from most to least significant.
+						b[0] = bits.Reverse8(byte(subject.KeyUsage))
+						b[1] = bits.Reverse8(byte(subject.KeyUsage >> 8))
+						// If the final byte is all zeros, skip it.
+						var ku asn1.BitString
+						if b[1] == 0 {
+							ku.Bytes = b[:1]
+						} else {
+							ku.Bytes = b[:]
+						}
+						ku.BitLength = bits.Len16(uint16(subject.KeyUsage))
+						der, err := asn1.Marshal(ku)
+						if err != nil {
+							extVal.SetError(err)
+						} else {
+							extVal.AddBytes(der)
+						}
+					})
+				})
+			}
+
+			if len(subject.DNSNames) != 0 {
+				exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
+					ext.AddASN1ObjectIdentifier(oidSubjectAltName)
+					ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
+						extVal.AddASN1(cbasn1.SEQUENCE, func(names *cryptobyte.Builder) {
+							for _, dns := range subject.DNSNames {
+								addASN1ImplicitString(names, cbasn1.Tag(2).ContextSpecific(), []byte(dns))
 							}
-							ku.BitLength = bits.Len16(uint16(subject.KeyUsage))
-							der, err := asn1.Marshal(ku)
-							if err != nil {
-								extVal.SetError(err)
-							} else {
-								extVal.AddBytes(der)
-							}
 						})
 					})
-				}
+				})
+			}
 
-				if len(subject.DNSNames) != 0 {
-					exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
-						ext.AddASN1ObjectIdentifier(oidSubjectAltName)
-						ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
-							extVal.AddASN1(cbasn1.SEQUENCE, func(names *cryptobyte.Builder) {
-								for _, dns := range subject.DNSNames {
-									addASN1ImplicitString(names, cbasn1.Tag(2).ContextSpecific(), []byte(dns))
-								}
-							})
+			if subject.IsCA {
+				exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
+					ext.AddASN1ObjectIdentifier(oidBasicConstraints)
+					ext.AddASN1Boolean(true) // critical
+					ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
+						extVal.AddASN1(cbasn1.SEQUENCE, func(bcons *cryptobyte.Builder) {
+							bcons.AddASN1Boolean(true)
 						})
 					})
-				}
+				})
+			}
 
-				if subject.IsCA {
-					exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
-						ext.AddASN1ObjectIdentifier(oidBasicConstraints)
-						ext.AddASN1Boolean(true) // critical
-						ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
-							extVal.AddASN1(cbasn1.SEQUENCE, func(bcons *cryptobyte.Builder) {
-								bcons.AddASN1Boolean(true)
-							})
-						})
+			if len(subject.SubjectKeyID) != 0 {
+				exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
+					ext.AddASN1ObjectIdentifier(oidSubjectKeyID)
+					ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
+						extVal.AddASN1OctetString(subject.SubjectKeyID)
 					})
-				}
-
-				if len(subject.SubjectKeyID) != 0 {
-					exts.AddASN1(cbasn1.SEQUENCE, func(ext *cryptobyte.Builder) {
-						ext.AddASN1ObjectIdentifier(oidSubjectKeyID)
-						ext.AddASN1(cbasn1.OCTET_STRING, func(extVal *cryptobyte.Builder) {
-							extVal.AddASN1OctetString(subject.SubjectKeyID)
-						})
-					})
-				}
-			})
+				})
+			}
 		})
 	})
 

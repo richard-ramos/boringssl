@@ -220,6 +220,7 @@ var (
 	ecdsaP521Certificate Credential
 	ed25519Certificate   Credential
 	garbageCertificate   Credential
+	pssCertificate       Credential
 )
 
 func initCertificates() {
@@ -272,6 +273,16 @@ func initCertificates() {
 	}).Issue(X509Info{
 		PrivateKey: &rsa2048Key,
 		DNSNames:   []string{"test"},
+	}).ToCredential()
+
+	// Make an id-RSASSA-PSS certificate. This is only partially supported as a
+	// PSS credential. The private key is still an id-rsaEncryption key, only
+	// the certificate uses id-RSASSA-PSS. We do not support id-RSASSA-PSS with
+	// TLS, so this test only exists to ensure BoringSSL does not accept it.
+	pssCertificate = rootCA.Issue(X509Info{
+		PrivateKey:         &rsa2048Key,
+		DNSNames:           []string{"test"},
+		EncodeSPKIAsRSAPSS: true,
 	}).ToCredential()
 }
 
