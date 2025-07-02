@@ -116,10 +116,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   set(CLANG 1)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  set(EMSCRIPTEN 1)
-endif()
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
@@ -135,7 +131,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
     # See http://llvm.org/viewvc/llvm-project?view=revision&revision=319116
     set(C_CXX_FLAGS "${C_CXX_FLAGS} -W3 -Wno-unused-parameter -fmsc-version=1900")
   else()
-    if(EMSCRIPTEN)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
       # emscripten's emcc/clang does not accept the "-ggdb" flag.
       set(C_CXX_FLAGS "${C_CXX_FLAGS} -g")
     else()
