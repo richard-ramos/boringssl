@@ -917,6 +917,19 @@ struct bignum_st {
   int flags;
 };
 
+// On some 32-bit platforms, Montgomery multiplication is done using 64-bit
+// arithmetic with SIMD instructions. On such platforms, |BN_MONT_CTX::n0|
+// needs to be two words long. Only certain 32-bit platforms actually make use
+// of n0[1] and shorter R value would suffice for the others. However,
+// currently only the assembly files know which is which.
+#if defined(OPENSSL_64_BIT)
+#define BN_MONT_CTX_N0_LIMBS 1
+#elif defined(OPENSSL_32_BIT)
+#define BN_MONT_CTX_N0_LIMBS 2
+#else
+#error "unknown bit size"
+#endif
+
 struct bn_mont_ctx_st {
   // RR is R^2, reduced modulo |N|. It is used to convert to Montgomery form. It
   // is guaranteed to have the same width as |N|.
@@ -924,7 +937,7 @@ struct bn_mont_ctx_st {
   // N is the modulus. It is always stored in minimal form, so |N.width|
   // determines R.
   BIGNUM N;
-  BN_ULONG n0[2];  // least significant words of (R*Ri-1)/N
+  BN_ULONG n0[BN_MONT_CTX_N0_LIMBS];  // least significant words of (R*Ri-1)/N
 };
 
 OPENSSL_EXPORT unsigned BN_num_bits_word(BN_ULONG l);
