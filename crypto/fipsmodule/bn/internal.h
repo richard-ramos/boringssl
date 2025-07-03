@@ -47,6 +47,7 @@ extern "C" {
 #define BN_MASK2l (0xffffffffUL)
 #define BN_MASK2h (0xffffffff00000000UL)
 #define BN_MASK2h1 (0xffffffff80000000UL)
+#define BN_MONT_CTX_N0_LIMBS 1
 #define BN_DEC_CONV (10000000000000000000UL)
 #define BN_DEC_NUM 19
 #define TOBN(hi, lo) ((BN_ULONG)(hi) << 32 | (lo))
@@ -63,6 +64,12 @@ extern "C" {
 #define BN_MASK2l (0xffffUL)
 #define BN_MASK2h1 (0xffff8000UL)
 #define BN_MASK2h (0xffff0000UL)
+// On some 32-bit platforms, Montgomery multiplication is done using 64-bit
+// arithmetic with SIMD instructions. On such platforms, |BN_MONT_CTX::n0|
+// needs to be two words long. Only certain 32-bit platforms actually make use
+// of n0[1] and shorter R value would suffice for the others. However,
+// currently only the assembly files know which is which.
+#define BN_MONT_CTX_N0_LIMBS 2
 #define BN_DEC_CONV (1000000000UL)
 #define BN_DEC_NUM 9
 #define TOBN(hi, lo) (lo), (hi)
@@ -265,6 +272,16 @@ int bn_rand_secret_range(BIGNUM *r, int *out_is_uniform, BN_ULONG min_inclusive,
 // |bn_mul_mont| allocation to under a page. Lower the maximum RSA key and then
 // lower this to match.
 #define BN_MONTGOMERY_MAX_WORDS (16384 / BN_BITS2)
+
+struct bn_mont_ctx_st {
+  // RR is R^2, reduced modulo |N|. It is used to convert to Montgomery form. It
+  // is guaranteed to have the same width as |N|.
+  BIGNUM RR;
+  // N is the modulus. It is always stored in minimal form, so |N.width|
+  // determines R.
+  BIGNUM N;
+  BN_ULONG n0[BN_MONT_CTX_N0_LIMBS];  // least significant words of (R*Ri-1)/N
+};
 
 #if !defined(OPENSSL_NO_ASM) &&                         \
     (defined(OPENSSL_X86) || defined(OPENSSL_X86_64) || \
