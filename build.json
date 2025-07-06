@@ -933,6 +933,7 @@
             "crypto/pkcs7/test/*.pem",
             "crypto/pkcs8/test/*.p12",
             "crypto/poly1305/poly1305_tests.txt",
+            "crypto/rsa/test/*.pem",
             "crypto/siphash/siphash_tests.txt",
             "crypto/slhdsa/slhdsa_keygen.txt",
             "crypto/slhdsa/slhdsa_prehash.txt",

@@ -920,6 +920,14 @@ set(
   crypto/pkcs8/test/unicode_password.p12
   crypto/pkcs8/test/windows.p12
   crypto/poly1305/poly1305_tests.txt
+  crypto/rsa/test/rsa511.pem
+  crypto/rsa/test/rsa511pub.pem
+  crypto/rsa/test/rsa512.pem
+  crypto/rsa/test/rsa512pub.pem
+  crypto/rsa/test/rsa8192.pem
+  crypto/rsa/test/rsa8192pub.pem
+  crypto/rsa/test/rsa8193.pem
+  crypto/rsa/test/rsa8193pub.pem
   crypto/siphash/siphash_tests.txt
   crypto/slhdsa/slhdsa_keygen.txt
   crypto/slhdsa/slhdsa_prehash.txt
