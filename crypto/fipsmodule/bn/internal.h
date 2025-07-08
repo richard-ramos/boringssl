@@ -105,11 +105,6 @@ extern "C" {
         sizeof(x) / sizeof(BN_ULONG), 0, BN_FLG_STATIC_DATA \
   }
 
-#if defined(BN_ULLONG)
-#define Lw(t) ((BN_ULONG)(t))
-#define Hw(t) ((BN_ULONG)((t) >> BN_BITS2))
-#endif
-
 // bn_minimal_width returns the minimal number of words needed to represent
 // |bn|.
 int bn_minimal_width(const BIGNUM *bn);
