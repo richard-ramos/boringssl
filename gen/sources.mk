@@ -74,6 +74,8 @@ boringssl_bcm_internal_headers := \
   crypto/fipsmodule/ec/wnaf.cc.inc \
   crypto/fipsmodule/ecdh/ecdh.cc.inc \
   crypto/fipsmodule/ecdsa/ecdsa.cc.inc \
+  crypto/fipsmodule/entropy/jitter.cc.inc \
+  crypto/fipsmodule/entropy/sha512.cc.inc \
   crypto/fipsmodule/hkdf/hkdf.cc.inc \
   crypto/fipsmodule/hmac/hmac.cc.inc \
   crypto/fipsmodule/keccak/keccak.cc.inc \
@@ -623,6 +625,7 @@ boringssl_crypto_internal_headers := \
   crypto/fipsmodule/ec/p256-nistz.h \
   crypto/fipsmodule/ec/p256_table.h \
   crypto/fipsmodule/ecdsa/internal.h \
+  crypto/fipsmodule/entropy/internal.h \
   crypto/fipsmodule/keccak/internal.h \
   crypto/fipsmodule/rand/internal.h \
   crypto/fipsmodule/rsa/internal.h \
@@ -739,6 +742,7 @@ boringssl_crypto_test_sources := \
   crypto/fipsmodule/ec/p256-nistz_test.cc \
   crypto/fipsmodule/ec/p256_test.cc \
   crypto/fipsmodule/ecdsa/ecdsa_test.cc \
+  crypto/fipsmodule/entropy/jitter_test.cc \
   crypto/fipsmodule/hkdf/hkdf_test.cc \
   crypto/fipsmodule/keccak/keccak_test.cc \
   crypto/fipsmodule/rand/ctrdrbg_test.cc \
