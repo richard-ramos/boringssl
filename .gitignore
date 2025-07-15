@@ -6,11 +6,10 @@
 *.pyc
 *.swp
 *.swo
+/out/
 /doc/*.html
 /doc/doc.css
-/rust/Cargo.lock
-/rust/bssl-crypto/Cargo.lock
-/rust/target
+/rust/**/target
 /user.bazelrc
 
 /util/bazel-example/bazel-*
@@ -36,5 +35,3 @@
 /util/bot/tools
 /util/bot/windows_sdk
 
-# Ignore target under any directory.
-target/
