@@ -28,10 +28,10 @@
 /util/bot/ninja
 /util/bot/perl-win32
 /util/bot/qemu-static
+/util/bot/rust-toolchain
 /util/bot/sde-linux64
 /util/bot/sde-linux64.tar.xz
 /util/bot/sde-win32
 /util/bot/sde-win32.tar.xz
 /util/bot/tools
 /util/bot/windows_sdk
-
