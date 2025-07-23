@@ -790,6 +790,18 @@ both_builders(
         },
     },
 )
+# TODO(crbug.com/42290446): Enable on both CQ and CI.
+cq_builder(
+    "linux_rust",
+    LINUX_HOST,
+    cq_enabled = False,
+    properties = {
+        "cmake_args": {
+            "RUST_BINDINGS": "x86_64-unknown-linux-gnu",
+        },
+        "rust": True,
+    },
+)
 both_builders(
     "linux_sde",
     LINUX_HOST,
