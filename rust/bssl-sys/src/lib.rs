@@ -4,6 +4,8 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(unnecessary_transmutes)]
+#![feature(cfg_version)]
+#![cfg_attr(version("1.88"), allow(unnecessary_transmutes))]
 
 use core::ffi::c_ulong;
 
