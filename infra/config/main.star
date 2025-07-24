@@ -45,6 +45,10 @@ luci.project(
             groups = "project-boringssl-tryjob-access",
         ),
         acl.entry(
+            roles = acl.CQ_NEW_PATCHSET_RUN_TRIGGERER,
+            groups = "project-boringssl-tryjob-access",
+        ),
+        acl.entry(
             roles = acl.SCHEDULER_OWNER,
             groups = "project-boringssl-admins",
         ),
