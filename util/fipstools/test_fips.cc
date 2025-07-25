@@ -121,7 +121,7 @@ static int run_test() {
   printf("About to do AES-KWP");
   size_t out_len;
   if (!AES_wrap_key_padded(&aes_key, output, &out_len, sizeof(output),
-                            kPlaintext, 16)) {
+                           kPlaintext, 16)) {
     printf("AES_wrap_key_padded failed\n");
     return 0;
   }
@@ -152,36 +152,72 @@ static int run_test() {
 
   uint8_t nonce[EVP_AEAD_MAX_NONCE_LENGTH];
   OPENSSL_memset(nonce, 0, sizeof(nonce));
-  bssl::ScopedEVP_AEAD_CTX aead_ctx;
-  if (!EVP_AEAD_CTX_init(aead_ctx.get(), EVP_aead_aes_128_gcm(), kAESKey,
-                         sizeof(kAESKey), 0, NULL)) {
-    printf("EVP_AEAD_CTX_init failed\n");
-    return 0;
+
+  /* AES-CCM */
+  {
+    bssl::ScopedEVP_AEAD_CTX aead_ctx;
+    if (!EVP_AEAD_CTX_init(aead_ctx.get(), EVP_aead_aes_128_ccm_bluetooth(),
+                           kAESKey, sizeof(kAESKey), 0, NULL)) {
+      printf("EVP_AEAD_CTX_init failed\n");
+      return 0;
+    }
+    printf("About to AES-CCM seal ");
+    hexdump(kPlaintext, sizeof(kPlaintext));
+    if (!EVP_AEAD_CTX_seal(
+            aead_ctx.get(), output, &out_len, sizeof(output), nonce,
+            EVP_AEAD_nonce_length(EVP_aead_aes_128_ccm_bluetooth()), kPlaintext,
+            sizeof(kPlaintext), NULL, 0)) {
+      printf("AES-CCM encrypt failed\n");
+      return 0;
+    }
+    printf("  got ");
+    hexdump(output, out_len);
+
+    /* AES-CCM Decryption */
+    printf("About to AES-CCM open ");
+    hexdump(output, out_len);
+    if (!EVP_AEAD_CTX_open(
+            aead_ctx.get(), output, &out_len, sizeof(output), nonce,
+            EVP_AEAD_nonce_length(EVP_aead_aes_128_ccm_bluetooth()), output,
+            out_len, NULL, 0)) {
+      printf("AES-GCM decrypt failed\n");
+      return 0;
+    }
+    printf("  got ");
+    hexdump(output, out_len);
   }
 
   /* AES-GCM Encryption */
-  printf("About to AES-GCM seal ");
-  hexdump(output, sizeof(kPlaintext));
-  if (!EVP_AEAD_CTX_seal(aead_ctx.get(), output, &out_len, sizeof(output),
-                         nonce, EVP_AEAD_nonce_length(EVP_aead_aes_128_gcm()),
-                         kPlaintext, sizeof(kPlaintext), NULL, 0)) {
-    printf("AES-GCM encrypt failed\n");
-    return 0;
-  }
-  printf("  got ");
-  hexdump(output, out_len);
+  {
+    bssl::ScopedEVP_AEAD_CTX aead_ctx;
+    if (!EVP_AEAD_CTX_init(aead_ctx.get(), EVP_aead_aes_128_gcm(), kAESKey,
+                           sizeof(kAESKey), 0, NULL)) {
+      printf("EVP_AEAD_CTX_init failed\n");
+      return 0;
+    }
+    printf("About to AES-GCM seal ");
+    hexdump(kPlaintext, sizeof(kPlaintext));
+    if (!EVP_AEAD_CTX_seal(aead_ctx.get(), output, &out_len, sizeof(output),
+                           nonce, EVP_AEAD_nonce_length(EVP_aead_aes_128_gcm()),
+                           kPlaintext, sizeof(kPlaintext), NULL, 0)) {
+      printf("AES-GCM encrypt failed\n");
+      return 0;
+    }
+    printf("  got ");
+    hexdump(output, out_len);
 
-  /* AES-GCM Decryption */
-  printf("About to AES-GCM open ");
-  hexdump(output, out_len);
-  if (!EVP_AEAD_CTX_open(aead_ctx.get(), output, &out_len, sizeof(output),
-                         nonce, EVP_AEAD_nonce_length(EVP_aead_aes_128_gcm()),
-                         output, out_len, NULL, 0)) {
-    printf("AES-GCM decrypt failed\n");
-    return 0;
+    /* AES-GCM Decryption */
+    printf("About to AES-GCM open ");
+    hexdump(output, out_len);
+    if (!EVP_AEAD_CTX_open(aead_ctx.get(), output, &out_len, sizeof(output),
+                           nonce, EVP_AEAD_nonce_length(EVP_aead_aes_128_gcm()),
+                           output, out_len, NULL, 0)) {
+      printf("AES-GCM decrypt failed\n");
+      return 0;
+    }
+    printf("  got ");
+    hexdump(output, out_len);
   }
-  printf("  got ");
-  hexdump(output, out_len);
 
   /* SHA-1 */
   printf("About to SHA-1 hash ");
