@@ -23,7 +23,6 @@
 #include <openssl/bytestring.h>
 #include <openssl/crypto.h>
 #include <openssl/ctrdrbg.h>
-#include <openssl/des.h>
 #include <openssl/dh.h>
 #include <openssl/ec_key.h>
 #include <openssl/ecdsa.h>
@@ -87,10 +86,6 @@ static int run_test() {
   static const uint8_t kAESKey[16] = "BoringCrypto Ky";
   static const uint8_t kPlaintext[64] =
       "BoringCryptoModule FIPS KAT Encryption and Decryption Plaintext";
-  static const DES_cblock kDESKey1 = {"BCMDES1"};
-  static const DES_cblock kDESKey2 = {"BCMDES2"};
-  static const DES_cblock kDESKey3 = {"BCMDES3"};
-  static const DES_cblock kDESIV = {"BCMDESI"};
   static const uint8_t kPlaintextSHA256[32] = {
       0x37, 0xbd, 0x70, 0x53, 0x72, 0xfc, 0xd4, 0x03, 0x79, 0x70, 0xfb,
       0x06, 0x95, 0xb1, 0x2a, 0x82, 0x48, 0xe1, 0x3e, 0xf2, 0x33, 0xfb,
@@ -166,30 +161,6 @@ static int run_test() {
   }
   printf("  got ");
   hexdump(output, out_len);
-
-  DES_key_schedule des1, des2, des3;
-  DES_cblock des_iv;
-  DES_set_key(&kDESKey1, &des1);
-  DES_set_key(&kDESKey2, &des2);
-  DES_set_key(&kDESKey3, &des3);
-
-  /* 3DES Encryption */
-  memcpy(&des_iv, &kDESIV, sizeof(des_iv));
-  printf("About to 3DES-CBC encrypt ");
-  hexdump(kPlaintext, sizeof(kPlaintext));
-  DES_ede3_cbc_encrypt(kPlaintext, output, sizeof(kPlaintext), &des1, &des2,
-                       &des3, &des_iv, DES_ENCRYPT);
-  printf("  got ");
-  hexdump(output, sizeof(kPlaintext));
-
-  /* 3DES Decryption */
-  memcpy(&des_iv, &kDESIV, sizeof(des_iv));
-  printf("About to 3DES-CBC decrypt ");
-  hexdump(kPlaintext, sizeof(kPlaintext));
-  DES_ede3_cbc_encrypt(output, output, sizeof(kPlaintext), &des1, &des2, &des3,
-                       &des_iv, DES_DECRYPT);
-  printf("  got ");
-  hexdump(output, sizeof(kPlaintext));
 
   /* SHA-1 */
   printf("About to SHA-1 hash ");
