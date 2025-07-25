@@ -98,18 +98,40 @@ static int run_test() {
       "DBRG Reseed Entropy                            ";
 
   AES_KEY aes_key;
-  uint8_t aes_iv[16];
-  uint8_t output[256];
 
-  /* AES-CBC Encryption */
-  memset(aes_iv, 0, sizeof(aes_iv));
   if (AES_set_encrypt_key(kAESKey, 8 * sizeof(kAESKey), &aes_key) != 0) {
     printf("AES_set_encrypt_key failed\n");
     return 0;
   }
 
-  printf("About to AES-CBC encrypt ");
+  /* AES-KW */
   hexdump(kPlaintext, sizeof(kPlaintext));
+
+  printf("About to do AES-KW");
+  uint8_t output[256];
+  const int kw_len = AES_wrap_key(&aes_key, nullptr, output, kPlaintext, 16);
+  if (kw_len == -1) {
+    printf("AES_wrap_key failed\n");
+    return 0;
+  }
+  printf("  got ");
+  hexdump(output, kw_len);
+
+  /* AES-KWP */
+  printf("About to do AES-KWP");
+  size_t out_len;
+  if (!AES_wrap_key_padded(&aes_key, output, &out_len, sizeof(output),
+                            kPlaintext, 16)) {
+    printf("AES_wrap_key_padded failed\n");
+    return 0;
+  }
+  printf(" got ");
+  hexdump(output, out_len);
+
+  /* AES-CBC Encryption */
+  uint8_t aes_iv[16];
+  memset(aes_iv, 0, sizeof(aes_iv));
+  printf("About to AES-CBC encrypt ");
   AES_cbc_encrypt(kPlaintext, output, sizeof(kPlaintext), &aes_key, aes_iv,
                   AES_ENCRYPT);
   printf("  got ");
@@ -128,7 +150,6 @@ static int run_test() {
   printf("  got ");
   hexdump(output, sizeof(kPlaintext));
 
-  size_t out_len;
   uint8_t nonce[EVP_AEAD_MAX_NONCE_LENGTH];
   OPENSSL_memset(nonce, 0, sizeof(nonce));
   bssl::ScopedEVP_AEAD_CTX aead_ctx;
