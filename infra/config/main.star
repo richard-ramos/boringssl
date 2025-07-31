@@ -1010,13 +1010,14 @@ both_builders(
 # TODO(crbug.com/42290446): Verify the recipe is working, then remove this
 # testing-only builder and incorporate the Rust steps on "win64" on CQ and CI.
 cq_builder(
-    "win64_rust",
+    "win64_rel_rust",
     WIN_HOST,
     cq_enabled = False,
     properties = {
         "msvc_target": "x64",
         "cmake_args": {
             "RUST_BINDINGS": "x86_64-pc-windows-msvc",
+            "CMAKE_BUILD_TYPE": "Release",
         },
         "rust": True,
     },
