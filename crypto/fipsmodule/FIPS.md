@@ -1,6 +1,6 @@
 # FIPS 140-3
 
-BoringSSL as a whole is not FIPS validated. However, there is a core library (called BoringCrypto) that has been FIPS validated. This document contains some notes about the design of the FIPS module and some documentation on performing FIPS-related tasks. This is not a substitute for reading the official Security Policy.
+BoringSSL as a whole is not FIPS validated. However, there is a core library (called BoringCrypto, abbreviated in the code as BCM for "BoringCrypto Module") that has been FIPS validated. This document contains some notes about the design of the FIPS module and some documentation on performing FIPS-related tasks. This is not a substitute for reading the official Security Policy.
 
 Please note that we cannot answer questions about FIPS, nor about using BoringSSL in a FIPS-compliant manner. Please consult with an [accredited CMVP lab](http://csrc.nist.gov/groups/STM/testing_labs/) on these subjects.
 
