@@ -195,6 +195,60 @@ TEST(PEMTokenizerTest, SpanConstructor) {
   EXPECT_FALSE(tokenizer.GetNext());
 }
 
+TEST(PEMDecodeTest, BasicSingle) {
+  const std::string_view data =
+      "-----BEGIN SINGLE-----\n"
+      "YmxvY2sgYm9keQ=="
+      "-----END SINGLE-----\n"
+      "-----BEGIN WRONG-----\n"
+      "d3JvbmcgYmxvY2sgYm9keQ=="
+      "-----END WRONG-----\n";
+  std::optional<std::string> result = PEMDecodeSingle(data, "SINGLE");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(*result, "block body");
+}
+
+TEST(PEMDecodeTest, BasicMulti) {
+  const std::string_view data =
+      "-----BEGIN MULTI-1-----\n"
+      "YmxvY2sgYm9keSAx"
+      "-----END MULTI-1-----\n"
+      "-----BEGIN WRONG-----\n"
+      "d3JvbmcgYmxvY2sgYm9keQ=="
+      "-----END WRONG-----\n"
+      "-----BEGIN MULTI-2-----\n"
+      "YmxvY2sgYm9keSAy"
+      "-----END MULTI-2-----\n";
+  const std::array<std::string_view, 2> accepted_types = {"MULTI-1", "MULTI-2"};
+  std::vector<PEMToken> result = PEMDecode(data, accepted_types);
+  EXPECT_EQ(result.size(), 2u);
+  EXPECT_EQ(result[0].type, "MULTI-1");
+  EXPECT_EQ(result[0].data, "block body 1");
+  EXPECT_EQ(result[1].type, "MULTI-2");
+  EXPECT_EQ(result[1].data, "block body 2");
+}
+
+TEST(PEMDecodeTest, TypeMismatchSingle) {
+  const std::string_view data =
+      "-----BEGIN WRONG-----\n"
+      "d3JvbmcgYmxvY2sgYm9keQ=="
+      "-----END WRONG-----\n";
+  std::optional<std::string> result = PEMDecodeSingle(data, "SINGLE");
+  EXPECT_FALSE(result);
+}
+
+TEST(PEMDecodeTest, TooManySingle) {
+  const std::string_view data =
+      "-----BEGIN SINGLE-----\n"
+      "YmV0dGVyIG5vdCBzZWUgdGhpcw=="
+      "-----END SINGLE-----\n"
+      "-----BEGIN SINGLE-----\n"
+      "b3IgdGhpcw=="
+      "-----END SINGLE-----\n";
+  std::optional<std::string> result = PEMDecodeSingle(data, "SINGLE");
+  EXPECT_FALSE(result);
+}
+
 TEST(PEMEncodeTest, Basic) {
   EXPECT_EQ(
       "-----BEGIN BLOCK-ONE-----\n"

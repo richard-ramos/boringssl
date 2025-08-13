@@ -125,6 +125,35 @@ void PEMTokenizer::Init(std::string_view str,
   }
 }
 
+std::vector<PEMToken> PEMDecode(
+    std::string_view data, bssl::Span<const std::string_view> allowed_types) {
+  std::vector<PEMToken> results;
+  PEMTokenizer tokenizer(data, allowed_types);
+  while (tokenizer.GetNext()) {
+    results.push_back(PEMToken{tokenizer.block_type(), tokenizer.data()});
+  }
+  return results;
+}
+
+std::optional<std::string> PEMDecodeSingle(
+    std::string_view data, std::string_view allowed_type) {
+  const std::array<const std::string_view, 1> allowed_types = {allowed_type};
+  PEMTokenizer tokenizer(data, allowed_types);
+  if (!tokenizer.GetNext()) {
+    return std::nullopt;
+  }
+
+  std::string result = tokenizer.data();
+
+  // We need exactly one token of the allowed types, so return nullopt if
+  // there's more than one.
+  if (tokenizer.GetNext()) {
+    return std::nullopt;
+  }
+
+  return result;
+}
+
 std::string PEMEncode(std::string_view data, const std::string &type) {
   std::string b64_encoded;
   string_util::Base64Encode(data, &b64_encoded);
