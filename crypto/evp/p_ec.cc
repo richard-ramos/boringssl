@@ -193,7 +193,7 @@ static int pkey_ec_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
   return 1;
 }
 
-const EVP_PKEY_METHOD ec_pkey_meth = {
+const EVP_PKEY_CTX_METHOD ec_pkey_meth = {
     EVP_PKEY_EC,
     pkey_ec_init,
     pkey_ec_copy,

@@ -25,23 +25,23 @@
 #include "internal.h"
 
 
-static const EVP_PKEY_METHOD *const evp_methods[] = {
+static const EVP_PKEY_CTX_METHOD *const evp_methods[] = {
     &rsa_pkey_meth,    &ec_pkey_meth,   &ed25519_pkey_meth,
     &x25519_pkey_meth, &hkdf_pkey_meth,
 };
 
-static const EVP_PKEY_METHOD *evp_pkey_meth_find(int type) {
-  for (size_t i = 0; i < sizeof(evp_methods) / sizeof(EVP_PKEY_METHOD *); i++) {
-    if (evp_methods[i]->pkey_id == type) {
-      return evp_methods[i];
+static const EVP_PKEY_CTX_METHOD *evp_pkey_meth_find(int type) {
+  for (auto method : evp_methods) {
+    if (method->pkey_id == type) {
+      return method;
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static EVP_PKEY_CTX *evp_pkey_ctx_new(EVP_PKEY *pkey, ENGINE *e,
-                                      const EVP_PKEY_METHOD *pmeth) {
+                                      const EVP_PKEY_CTX_METHOD *pmeth) {
   bssl::UniquePtr<EVP_PKEY_CTX> ret = bssl::MakeUnique<EVP_PKEY_CTX>();
   if (!ret) {
     return nullptr;
@@ -66,7 +66,7 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_new(EVP_PKEY *pkey, ENGINE *e) {
     return NULL;
   }
 
-  const EVP_PKEY_METHOD *pkey_method = pkey->ameth->pkey_method;
+  const EVP_PKEY_CTX_METHOD *pkey_method = pkey->ameth->pkey_method;
   if (pkey_method == NULL) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     ERR_add_error_dataf("algorithm %d", pkey->ameth->pkey_id);
@@ -77,7 +77,7 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_new(EVP_PKEY *pkey, ENGINE *e) {
 }
 
 EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int id, ENGINE *e) {
-  const EVP_PKEY_METHOD *pkey_method = evp_pkey_meth_find(id);
+  const EVP_PKEY_CTX_METHOD *pkey_method = evp_pkey_meth_find(id);
   if (pkey_method == NULL) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     ERR_add_error_dataf("algorithm %d", id);

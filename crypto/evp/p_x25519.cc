@@ -90,7 +90,7 @@ static int pkey_x25519_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
   }
 }
 
-const EVP_PKEY_METHOD x25519_pkey_meth = {
+const EVP_PKEY_CTX_METHOD x25519_pkey_meth = {
     /*pkey_id=*/EVP_PKEY_X25519,
     /*init=*/NULL,
     /*copy=*/pkey_x25519_copy,

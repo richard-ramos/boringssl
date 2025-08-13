@@ -84,7 +84,7 @@ static int pkey_ed25519_verify_message(EVP_PKEY_CTX *ctx, const uint8_t *sig,
   return 1;
 }
 
-const EVP_PKEY_METHOD ed25519_pkey_meth = {
+const EVP_PKEY_CTX_METHOD ed25519_pkey_meth = {
     /*pkey_id=*/EVP_PKEY_ED25519,
     /*init=*/nullptr,
     /*copy=*/pkey_ed25519_copy,
