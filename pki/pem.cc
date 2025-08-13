@@ -15,6 +15,7 @@
 #include "pem.h"
 #include "string_util.h"
 
+#include <array>
 #include <string_view>
 
 namespace {
@@ -37,6 +38,16 @@ struct PEMTokenizer::PEMType {
 
 PEMTokenizer::PEMTokenizer(
     std::string_view str, const std::vector<std::string> &allowed_block_types) {
+  std::vector<std::string_view> types;
+  for (const auto &type : allowed_block_types) {
+    types.emplace_back(type);
+  }
+  Init(str, bssl::Span(types));
+}
+
+PEMTokenizer::PEMTokenizer(
+    std::string_view str,
+    bssl::Span<const std::string_view> allowed_block_types) {
   Init(str, allowed_block_types);
 }
 
@@ -95,7 +106,7 @@ bool PEMTokenizer::GetNext() {
 }
 
 void PEMTokenizer::Init(std::string_view str,
-                        const std::vector<std::string> &allowed_block_types) {
+                        bssl::Span<const std::string_view> allowed_block_types) {
   str_ = str;
   pos_ = 0;
 

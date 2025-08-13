@@ -14,6 +14,11 @@
 
 #include "pem.h"
 
+#include <array>
+#include <string>
+#include <string_view>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 BSSL_NAMESPACE_BEGIN
@@ -172,6 +177,20 @@ TEST(PEMTokenizerTest, BlockWithHeader) {
 
   EXPECT_EQ("BLOCK-ONE", tokenizer.block_type());
   EXPECT_EQ("EncodedDataTwo", tokenizer.data());
+
+  EXPECT_FALSE(tokenizer.GetNext());
+}
+
+TEST(PEMTokenizerTest, SpanConstructor) {
+  const std::string_view data =
+      "-----BEGIN EXPECTED-BLOCK-----\n"
+      "U3BhbkNvbnN0cnVjdG9y\n"
+      "-----END EXPECTED-BLOCK-----\n";
+  const std::array<std::string_view, 1> accepted_types = { "EXPECTED-BLOCK" };
+  PEMTokenizer tokenizer(data, bssl::Span(accepted_types));
+  EXPECT_TRUE(tokenizer.GetNext());
+  EXPECT_EQ("EXPECTED-BLOCK", tokenizer.block_type());
+  EXPECT_EQ("SpanConstructor", tokenizer.data());
 
   EXPECT_FALSE(tokenizer.GetNext());
 }

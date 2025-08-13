@@ -22,6 +22,7 @@
 #include <vector>
 
 #include <openssl/base.h>
+#include <openssl/span.h>
 
 BSSL_NAMESPACE_BEGIN
 
@@ -36,6 +37,8 @@ class OPENSSL_EXPORT PEMTokenizer {
   // |str| must remain valid for the duration of the PEMTokenizer.
   PEMTokenizer(std::string_view str,
                const std::vector<std::string> &allowed_block_types);
+  PEMTokenizer(std::string_view str,
+               bssl::Span<const std::string_view> allowed_block_types);
 
   PEMTokenizer(const PEMTokenizer &) = delete;
   PEMTokenizer &operator=(const PEMTokenizer &) = delete;
@@ -59,7 +62,7 @@ class OPENSSL_EXPORT PEMTokenizer {
 
  private:
   void Init(std::string_view str,
-            const std::vector<std::string> &allowed_block_types);
+            bssl::Span<const std::string_view> allowed_block_types);
 
   // A simple cache of the allowed PEM header and footer for a given PEM
   // block type, so that it is only computed once.
