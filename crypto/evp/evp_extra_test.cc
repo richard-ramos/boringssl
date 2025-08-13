@@ -1271,3 +1271,31 @@ TEST(EVPExtraTest, NoHalfEmptyKeys) {
   EXPECT_FALSE(EVP_PKEY_set1_DSA(pkey.get(), nullptr));
   EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
 }
+
+// Test that parsers correctly handle trailing data.
+TEST(EVPExtraTest, TrailingData) {
+  bssl::UniquePtr<EVP_PKEY> pkey = LoadExampleRSAKey();
+  ASSERT_TRUE(pkey);
+  bssl::ScopedCBB cbb;
+  ASSERT_TRUE(CBB_init(cbb.get(), 64));
+  ASSERT_TRUE(EVP_marshal_public_key(cbb.get(), pkey.get()));
+
+  std::vector<uint8_t> spki(CBB_data(cbb.get()),
+                            CBB_data(cbb.get()) + CBB_len(cbb.get()));
+  spki.push_back('a');
+
+  // |EVP_parse_public_key| should accept trailing data and return the
+  // remainder.
+  CBS cbs(spki);
+  pkey.reset(EVP_parse_public_key(&cbs));
+  EXPECT_TRUE(pkey);
+  EXPECT_EQ(Bytes(cbs), Bytes("a"));
+
+  // |EVP_PKEY_from_subject_public_key_info| should not.
+  const EVP_PKEY_ALG *alg = EVP_pkey_rsa();
+  pkey.reset(EVP_PKEY_from_subject_public_key_info(spki.data(), spki.size(),
+                                                   &alg, 1u));
+  EXPECT_FALSE(pkey);
+  EXPECT_TRUE(
+      ErrorEquals(ERR_peek_last_error(), ERR_LIB_EVP, EVP_R_DECODE_ERROR));
+}

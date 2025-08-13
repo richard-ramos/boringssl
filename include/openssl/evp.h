@@ -76,6 +76,13 @@ OPENSSL_EXPORT int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from);
 // parameters or zero if not, or if the algorithm doesn't take parameters.
 OPENSSL_EXPORT int EVP_PKEY_missing_parameters(const EVP_PKEY *pkey);
 
+// EVP_PKEY_cmp_parameters compares the parameters of |a| and |b|. It returns
+// one if they match, zero if not, or a negative number on error.
+//
+// WARNING: the return value differs from the usual return value convention.
+OPENSSL_EXPORT int EVP_PKEY_cmp_parameters(const EVP_PKEY *a,
+                                           const EVP_PKEY *b);
+
 // EVP_PKEY_size returns the maximum size, in bytes, of a signature signed by
 // |pkey|. For an RSA key, this returns the number of bytes needed to represent
 // the modulus. For an EC key, this returns the maximum size of a DER-encoded
@@ -87,9 +94,83 @@ OPENSSL_EXPORT int EVP_PKEY_size(const EVP_PKEY *pkey);
 // length of the group order.
 OPENSSL_EXPORT int EVP_PKEY_bits(const EVP_PKEY *pkey);
 
+// The following constants are returned by |EVP_PKEY_id| and specify the type of
+// key.
+#define EVP_PKEY_NONE NID_undef
+#define EVP_PKEY_RSA NID_rsaEncryption
+#define EVP_PKEY_RSA_PSS NID_rsassaPss
+#define EVP_PKEY_DSA NID_dsa
+#define EVP_PKEY_EC NID_X9_62_id_ecPublicKey
+#define EVP_PKEY_ED25519 NID_ED25519
+#define EVP_PKEY_X25519 NID_X25519
+#define EVP_PKEY_HKDF NID_hkdf
+#define EVP_PKEY_DH NID_dhKeyAgreement
+
 // EVP_PKEY_id returns the type of |pkey|, which is one of the |EVP_PKEY_*|
-// values.
+// values above. These type values generally corresond to the algorithm OID, but
+// not the parameters, of a SubjectPublicKeyInfo (RFC 5280) or PrivateKeyInfo
+// (RFC 5208) AlgorithmIdentifier. Algorithm parameters can be inspected with
+// algorithm-specific accessors, e.g. |EVP_PKEY_get_ec_curve_nid|.
 OPENSSL_EXPORT int EVP_PKEY_id(const EVP_PKEY *pkey);
+
+
+// Algorithms.
+//
+// An |EVP_PKEY| may carry a key from one of several algorithms, represented by
+// |EVP_PKEY_ALG|. |EVP_PKEY_ALG|s are used by functions that construct
+// |EVP_PKEY|s, such as parsing, so that callers can specify the algorithm(s) to
+// use.
+//
+// Each |EVP_PKEY_ALG| generally corresponds to the AlgorithmIdentifier of a
+// SubjectPublicKeyInfo (RFC 5280) or PrivateKeyInfo (RFC 5208), but some may
+// support multiple sets of AlgorithmIdentifier parameters, while others may be
+// specific to one parameter.
+
+// EVP_pkey_rsa implements RSA keys (RFC 8017), encoded as rsaEncryption (RFC
+// 3279, Section 2.3.1). The rsaEncryption encoding is confusingly named: these
+// keys are used for all RSA operations, including signing. The |EVP_PKEY_id|
+// value is |EVP_PKEY_RSA|.
+//
+// WARNING: This |EVP_PKEY_ALG| accepts all RSA key sizes supported by
+// BoringSSL. When parsing RSA keys, callers should check the size is within
+// their desired bounds with |EVP_PKEY_bits|. RSA public key operations scale
+// quadratically and RSA private key operations scale cubicly, so key sizes may
+// be a DoS vector.
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_rsa(void);
+
+// EVP_pkey_ec_* implement EC keys, encoded as id-ecPublicKey (RFC 5480,
+// Section 2.1.1). The id-ecPublicKey encoding is confusingly named: it is also
+// used for private keys (RFC 5915). The |EVP_PKEY_id| value is |EVP_PKEY_EC|.
+//
+// Each function only supports the specified curve, but curves are not reflected
+// in |EVP_PKEY_id|. The curve can be inspected with
+// |EVP_PKEY_get_ec_curve_nid|.
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p224(void);
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p256(void);
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p384(void);
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p521(void);
+
+// EVP_pkey_x25519 implements X25519 keys (RFC 7748), encoded as in RFC 8410.
+// The |EVP_PKEY_id| value is |EVP_PKEY_X25519|.
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_x25519(void);
+
+// EVP_pkey_ed25519 implements Ed25519 keys (RFC 8032), encoded as in RFC 8410.
+// The |EVP_PKEY_id| value is |EVP_PKEY_ED25519|.
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ed25519(void);
+
+// EVP_pkey_dsa implements DSA keys, encoded as in RFC 3279, Section 2.3.2. The
+// |EVP_PKEY_id| value is |EVP_PKEY_DSA|. This |EVP_PKEY_ALG| accepts all DSA
+// parameters supported by BoringSSL.
+//
+// Keys of this type are not usable with any operations, though the underlying
+// |DSA| object can be extracted with |EVP_PKEY_get0_DSA|. This key type is
+// deprecated and only implemented for compatibility with legacy applications.
+//
+// TODO(crbug.com/42290364): We didn't wire up |EVP_PKEY_sign| and
+// |EVP_PKEY_verify| just so it was auditable which callers used DSA. Once DSA
+// is removed from the default SPKI and PKCS#8 parser and DSA users explicitly
+// request |EVP_pkey_dsa|, we could change that.
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_dsa(void);
 
 
 // Getting and setting concrete key types.
@@ -127,34 +208,36 @@ OPENSSL_EXPORT int EVP_PKEY_assign_DH(EVP_PKEY *pkey, DH *key);
 OPENSSL_EXPORT DH *EVP_PKEY_get0_DH(const EVP_PKEY *pkey);
 OPENSSL_EXPORT DH *EVP_PKEY_get1_DH(const EVP_PKEY *pkey);
 
-#define EVP_PKEY_NONE NID_undef
-#define EVP_PKEY_RSA NID_rsaEncryption
-#define EVP_PKEY_RSA_PSS NID_rsassaPss
-#define EVP_PKEY_DSA NID_dsa
-#define EVP_PKEY_EC NID_X9_62_id_ecPublicKey
-#define EVP_PKEY_ED25519 NID_ED25519
-#define EVP_PKEY_X25519 NID_X25519
-#define EVP_PKEY_HKDF NID_hkdf
-#define EVP_PKEY_DH NID_dhKeyAgreement
-
-// EVP_PKEY_cmp_parameters compares the parameters of |a| and |b|. It returns
-// one if they match, zero if not, or a negative number of on error.
-//
-// WARNING: the return value differs from the usual return value convention.
-OPENSSL_EXPORT int EVP_PKEY_cmp_parameters(const EVP_PKEY *a,
-                                           const EVP_PKEY *b);
-
 
 // ASN.1 functions
 
+// EVP_PKEY_from_subject_public_key_info decodes a DER-encoded
+// SubjectPublicKeyInfo structure (RFC 5280) from |in|. It returns a
+// newly-allocated |EVP_PKEY| or NULL on error. Only the |num_algs| algorithms
+// in |algs| will be considered when parsing.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_from_subject_public_key_info(
+    const uint8_t *in, size_t len, const EVP_PKEY_ALG *const *algs,
+    size_t num_algs);
+
 // EVP_parse_public_key decodes a DER-encoded SubjectPublicKeyInfo structure
 // (RFC 5280) from |cbs| and advances |cbs|. It returns a newly-allocated
-// |EVP_PKEY| or NULL on error. If the key is an EC key, the curve is guaranteed
-// to be set.
+// |EVP_PKEY| or NULL on error.
 //
-// The caller must check the type of the parsed public key to ensure it is
-// suitable and validate other desired key properties such as RSA modulus size
-// or EC curve.
+// Prefer |EVP_PKEY_from_subject_public_key_info| instead. This function has
+// several pitfalls:
+//
+// Callers are expected to handle trailing data retuned from |cbs|, making more
+// common cases error-prone.
+//
+// There is also no way to pass in supported algorithms. This function instead
+// supports some default set of algorithms. Future versions of BoringSSL may add
+// to this list, based on the needs of the other callers. Conversely, some
+// algorithms may be intentionally omitted, if they cause too much risk to
+// existing callers.
+//
+// This means callers must check the type of the parsed public key to ensure it
+// is suitable and validate other desired key properties such as RSA modulus
+// size or EC curve.
 OPENSSL_EXPORT EVP_PKEY *EVP_parse_public_key(CBS *cbs);
 
 // EVP_marshal_public_key marshals |key| as a DER-encoded SubjectPublicKeyInfo
@@ -162,19 +245,41 @@ OPENSSL_EXPORT EVP_PKEY *EVP_parse_public_key(CBS *cbs);
 // success and zero on error.
 OPENSSL_EXPORT int EVP_marshal_public_key(CBB *cbb, const EVP_PKEY *key);
 
+// EVP_PKEY_from_private_key_info decodes a DER-encoded PrivateKeyInfo structure
+// (RFC 5208) from |in|. It returns a newly-allocated |EVP_PKEY| or NULL on
+// error. Only the |num_algs| algorithms in |algs| will be considered when
+// parsing.
+//
+// A PrivateKeyInfo ends with an optional set of attributes. These are silently
+// ignored.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_from_private_key_info(
+    const uint8_t *in, size_t len, const EVP_PKEY_ALG *const *algs,
+    size_t num_algs);
+
 // EVP_parse_private_key decodes a DER-encoded PrivateKeyInfo structure (RFC
 // 5208) from |cbs| and advances |cbs|. It returns a newly-allocated |EVP_PKEY|
 // or NULL on error.
 //
-// The caller must check the type of the parsed private key to ensure it is
-// suitable and validate other desired key properties such as RSA modulus size
-// or EC curve. In particular, RSA private key operations scale cubicly, so
+// Prefer |EVP_PKEY_from_private_key_info| instead. This function has
+// several pitfalls:
+//
+// Callers are expected to handle trailing data retuned from |cbs|, making more
+// common cases error-prone.
+//
+// There is also no way to pass in supported algorithms. This function instead
+// supports some default set of algorithms. Future versions of BoringSSL may add
+// to this list, based on the needs of the other callers. Conversely, some
+// algorithms may be intentionally omitted, if they cause too much risk to
+// existing callers.
+//
+// This means the caller must check the type of the parsed private key to ensure
+// it is suitable and validate other desired key properties such as RSA modulus
+// size or EC curve. In particular, RSA private key operations scale cubicly, so
 // applications accepting RSA private keys from external sources may need to
 // bound key sizes (use |EVP_PKEY_bits| or |RSA_bits|) to avoid a DoS vector.
 //
-// A PrivateKeyInfo ends with an optional set of attributes. These are not
-// processed and so this function will silently ignore any trailing data in the
-// structure.
+// A PrivateKeyInfo ends with an optional set of attributes. These are silently
+// ignored.
 OPENSSL_EXPORT EVP_PKEY *EVP_parse_private_key(CBS *cbs);
 
 // EVP_marshal_private_key marshals |key| as a DER-encoded PrivateKeyInfo

@@ -45,7 +45,9 @@ static int rsa_pub_encode(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static int rsa_pub_decode(EVP_PKEY *out, CBS *params, CBS *key) {
+static evp_decode_result_t rsa_pub_decode(const EVP_PKEY_ALG *alg,
+                                          EVP_PKEY *out, CBS *params,
+                                          CBS *key) {
   // See RFC 3279, section 2.3.1.
 
   // The parameters must be NULL.
@@ -53,18 +55,18 @@ static int rsa_pub_decode(EVP_PKEY *out, CBS *params, CBS *key) {
   if (!CBS_get_asn1(params, &null, CBS_ASN1_NULL) || CBS_len(&null) != 0 ||
       CBS_len(params) != 0) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
-    return 0;
+    return evp_decode_error;
   }
 
   RSA *rsa = RSA_parse_public_key(key);
-  if (rsa == NULL || CBS_len(key) != 0) {
+  if (rsa == nullptr || CBS_len(key) != 0) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     RSA_free(rsa);
-    return 0;
+    return evp_decode_error;
   }
 
   EVP_PKEY_assign_RSA(out, rsa);
-  return 1;
+  return evp_decode_ok;
 }
 
 static int rsa_pub_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
@@ -93,24 +95,26 @@ static int rsa_priv_encode(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static int rsa_priv_decode(EVP_PKEY *out, CBS *params, CBS *key) {
+static evp_decode_result_t rsa_priv_decode(const EVP_PKEY_ALG *alg,
+                                           EVP_PKEY *out, CBS *params,
+                                           CBS *key) {
   // Per RFC 3447, A.1, the parameters have type NULL.
   CBS null;
   if (!CBS_get_asn1(params, &null, CBS_ASN1_NULL) || CBS_len(&null) != 0 ||
       CBS_len(params) != 0) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
-    return 0;
+    return evp_decode_error;
   }
 
   RSA *rsa = RSA_parse_private_key(key);
-  if (rsa == NULL || CBS_len(key) != 0) {
+  if (rsa == nullptr || CBS_len(key) != 0) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     RSA_free(rsa);
-    return 0;
+    return evp_decode_error;
   }
 
   EVP_PKEY_assign_RSA(out, rsa);
-  return 1;
+  return evp_decode_ok;
 }
 
 static int rsa_opaque(const EVP_PKEY *pkey) {
@@ -166,6 +170,14 @@ const EVP_PKEY_ASN1_METHOD rsa_asn1_meth = {
 
     int_rsa_free,
 };
+
+const EVP_PKEY_ALG *EVP_pkey_rsa(void) {
+  static const EVP_PKEY_ALG kAlg = {
+      /*method=*/&rsa_asn1_meth,
+      /*ec_group=*/nullptr,
+  };
+  return &kAlg;
+}
 
 int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key) {
   if (EVP_PKEY_assign_RSA(pkey, key)) {

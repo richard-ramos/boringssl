@@ -68,26 +68,6 @@ static const EVP_MD *GetDigest(std::string_view name) {
   return nullptr;
 }
 
-static int GetKeyType(std::string_view name) {
-  if (name == "RSA") {
-    return EVP_PKEY_RSA;
-  }
-  if (name == "EC") {
-    return EVP_PKEY_EC;
-  }
-  if (name == "DSA") {
-    return EVP_PKEY_DSA;
-  }
-  if (name == "Ed25519") {
-    return EVP_PKEY_ED25519;
-  }
-  if (name == "X25519") {
-    return EVP_PKEY_X25519;
-  }
-  ADD_FAILURE() << "Unknown key type: " << name;
-  return EVP_PKEY_NONE;
-}
-
 static std::optional<int> GetRSAPadding(std::string_view name) {
   if (name == "PKCS1") {
     return RSA_PKCS1_PADDING;
@@ -104,6 +84,23 @@ static std::optional<int> GetRSAPadding(std::string_view name) {
   ADD_FAILURE() << "Unknown RSA padding mode: " << name;
   return std::nullopt;
 }
+
+struct AlgorithmInfo {
+  const EVP_PKEY_ALG *alg;
+  int pkey_id;
+  bool is_default;
+};
+
+static const std::map<std::string, AlgorithmInfo> kAllAlgorithms = {
+    {"RSA", {EVP_pkey_rsa(), EVP_PKEY_RSA, true}},
+    {"EC-P-224", {EVP_pkey_ec_p224(), EVP_PKEY_EC, true}},
+    {"EC-P-256", {EVP_pkey_ec_p256(), EVP_PKEY_EC, true}},
+    {"EC-P-384", {EVP_pkey_ec_p384(), EVP_PKEY_EC, true}},
+    {"EC-P-521", {EVP_pkey_ec_p521(), EVP_PKEY_EC, true}},
+    {"X25519", {EVP_pkey_x25519(), EVP_PKEY_X25519, true}},
+    {"Ed25519", {EVP_pkey_ed25519(), EVP_PKEY_ED25519, true}},
+    {"DSA", {EVP_pkey_dsa(), EVP_PKEY_DSA, true}},
+};
 
 using KeyMap = std::map<std::string, bssl::UniquePtr<EVP_PKEY>>;
 
@@ -132,8 +129,11 @@ static void CheckRSAParam(FileTest *t, std::string_view attr_name,
 }
 
 static bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
-  auto format_name = key_role == KeyRole::kPublic ? "spki" : "pkcs8";
-  auto parse_func = key_role == KeyRole::kPublic ? &EVP_parse_public_key
+  std::string format_name = key_role == KeyRole::kPublic ? "spki" : "pkcs8";
+  auto parse_func = key_role == KeyRole::kPublic
+                        ? &EVP_PKEY_from_subject_public_key_info
+                        : &EVP_PKEY_from_private_key_info;
+  auto parse_default_func = key_role == KeyRole::kPublic ? &EVP_parse_public_key
                                                  : &EVP_parse_private_key;
   auto marshal_func = key_role == KeyRole::kPublic ? &EVP_marshal_public_key
                                                    : &EVP_marshal_private_key;
@@ -147,19 +147,66 @@ static bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
   if (!t->GetBytes(&input, "Input")) {
     return false;
   }
-  CBS cbs;
-  CBS_init(&cbs, input.data(), input.size());
-  bssl::UniquePtr<EVP_PKEY> new_key(parse_func(&cbs));
-  if (new_key == nullptr || CBS_len(&cbs) != 0) {
-    return false;
-  }
-  keys.emplace_back(format_name, std::move(new_key));
 
-  std::string key_type_str;
-  if (!t->GetAttribute(&key_type_str, "Type")) {
+  // First, parse the key with all algorithms active. Check this before
+  // specifying an individual algorithm, so that error cases do not need to
+  // specify an Algorithm key.
+  std::vector<const EVP_PKEY_ALG *> algs;
+  for (const auto &[name, info] : kAllAlgorithms) {
+    algs.push_back(info.alg);
+  }
+  bssl::UniquePtr<EVP_PKEY> new_key(
+      parse_func(input.data(), input.size(), algs.data(), algs.size()));
+  if (new_key == nullptr) {
     return false;
   }
-  int key_type = GetKeyType(key_type_str);
+  keys.emplace_back(format_name + " - all algs", std::move(new_key));
+
+  // Parse with just the specific algorithm.
+  std::string alg_name;
+  if (!t->GetAttribute(&alg_name, "Algorithm")) {
+    return false;
+  }
+  auto it = kAllAlgorithms.find(alg_name);
+  if (it == kAllAlgorithms.end()) {
+    ADD_FAILURE() << "Unknown algorithm: " << alg_name;
+    return false;
+  }
+  const AlgorithmInfo &alg_info = it->second;
+  new_key.reset(parse_func(input.data(), input.size(), &alg_info.alg, 1));
+  if (new_key == nullptr) {
+    return false;
+  }
+  keys.emplace_back(format_name + " - " + alg_name + " only",
+                    std::move(new_key));
+
+  // Parsing with all other algorithms should fail. This currently assumes each
+  // key can only be parsed by one algorithm. Make the field a list of
+  // algorithms if this ever changes.
+  algs.clear();
+  for (const auto &[name, info] : kAllAlgorithms) {
+    if (name != alg_name) {
+      algs.push_back(info.alg);
+    }
+  }
+  new_key.reset(
+      parse_func(input.data(), input.size(), algs.data(), algs.size()));
+  EXPECT_FALSE(new_key);
+  ERR_clear_error();
+
+  // Parse with the default parser.
+  CBS cbs(input);
+  new_key.reset(parse_default_func(&cbs));
+  if (alg_info.is_default) {
+    if (new_key == nullptr) {
+      return false;
+    }
+    keys.emplace_back(format_name + " - default algorithms",
+                      std::move(new_key));
+  } else {
+    EXPECT_FALSE(new_key);
+    ERR_clear_error();
+  }
 
   // Import as a raw key.
   if (key_role == KeyRole::kPublic && t->HasAttribute("RawPublic")) {
@@ -167,8 +214,8 @@ static bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
     if (!t->GetBytes(&raw, "RawPublic")) {
       return false;
     }
-    new_key.reset(
-        EVP_PKEY_new_raw_public_key(key_type, nullptr, raw.data(), raw.size()));
+    new_key.reset(EVP_PKEY_new_raw_public_key(alg_info.pkey_id, nullptr,
+                                              raw.data(), raw.size()));
     if (new_key == nullptr) {
       return false;
     }
@@ -179,8 +226,8 @@ static bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
     if (!t->GetBytes(&raw, "RawPrivate")) {
       return false;
     }
-    new_key.reset(EVP_PKEY_new_raw_private_key(key_type, nullptr, raw.data(),
-                                               raw.size()));
+    new_key.reset(EVP_PKEY_new_raw_private_key(alg_info.pkey_id, nullptr,
+                                               raw.data(), raw.size()));
     if (new_key == nullptr) {
       return false;
     }
@@ -188,7 +235,7 @@ static bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
   }
 
   // Import RSA key from parameters.
-  if (key_type == EVP_PKEY_RSA) {
+  if (alg_info.pkey_id == EVP_PKEY_RSA) {
     if (key_role == KeyRole::kPublic && t->HasAttribute("RSAParamN") &&
         t->HasAttribute("RSAParamE")) {
       bssl::UniquePtr<BIGNUM> n =
@@ -246,7 +293,7 @@ static bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
   for (const auto &[name, pkey] : keys) {
     SCOPED_TRACE(name);
 
-    EXPECT_EQ(key_type, EVP_PKEY_id(pkey.get()));
+    EXPECT_EQ(alg_info.pkey_id, EVP_PKEY_id(pkey.get()));
 
     if (t->HasAttribute("Bits")) {
       EXPECT_EQ(EVP_PKEY_bits(pkey.get()),
