@@ -1337,4 +1337,6 @@ TEST(EVPExtraTest, SetNoneClearsKey) {
   EXPECT_FALSE(EVP_PKEY_set_type(pkey.get(), EVP_PKEY_NONE));
   // However, it still resets the key to the initial state.
   EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
+  // Calling operations on the |EVP_PKEY| should cleanly fail.
+  EXPECT_EQ(EVP_PKEY_bits(pkey.get()), 0);
 }
