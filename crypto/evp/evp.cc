@@ -157,26 +157,6 @@ int EVP_PKEY_id(const EVP_PKEY *pkey) {
   return pkey->ameth != nullptr ? pkey->ameth->pkey_id : EVP_PKEY_NONE;
 }
 
-// evp_pkey_asn1_find returns the ASN.1 method table for the given |nid|, which
-// should be one of the |EVP_PKEY_*| values. It returns NULL if |nid| is
-// unknown.
-static const EVP_PKEY_ASN1_METHOD *evp_pkey_asn1_find(int nid) {
-  switch (nid) {
-    case EVP_PKEY_RSA:
-      return &rsa_asn1_meth;
-    case EVP_PKEY_EC:
-      return &ec_asn1_meth;
-    case EVP_PKEY_DSA:
-      return &dsa_asn1_meth;
-    case EVP_PKEY_ED25519:
-      return &ed25519_asn1_meth;
-    case EVP_PKEY_X25519:
-      return &x25519_asn1_meth;
-    default:
-      return NULL;
-  }
-}
-
 void evp_pkey_set_method(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method) {
   free_it(pkey);
   pkey->ameth = method;
@@ -215,8 +195,14 @@ int EVP_PKEY_set_type(EVP_PKEY *pkey, int type) {
     free_it(pkey);
   }
 
-  const EVP_PKEY_ASN1_METHOD *ameth = evp_pkey_asn1_find(type);
-  if (ameth == NULL) {
+  // This function broadly isn't useful. It initializes |EVP_PKEY| for a type,
+  // but forgets to put anything in the |pkey|. The one pattern where it does
+  // anything is |EVP_PKEY_X25519|, where it's needed to make
+  // |EVP_PKEY_set1_tls_encodedpoint| work, so we support only that.
+  const EVP_PKEY_ASN1_METHOD *ameth;
+  if (type == EVP_PKEY_X25519) {
+    ameth = &x25519_asn1_meth;
+  } else {
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     ERR_add_error_dataf("algorithm %d", type);
     return 0;

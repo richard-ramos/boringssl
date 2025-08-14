@@ -1065,15 +1065,6 @@ TEST(EVPExtraTest, TLSEncodedPoint) {
 }
 
 TEST(EVPExtraTest, Parameters) {
-  auto new_pkey_with_type = [](int type) -> bssl::UniquePtr<EVP_PKEY> {
-    bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
-    if (!pkey ||  //
-        !EVP_PKEY_set_type(pkey.get(), type)) {
-      return nullptr;
-    }
-    return pkey;
-  };
-
   auto new_pkey_with_curve = [](int curve_nid) -> bssl::UniquePtr<EVP_PKEY> {
     bssl::UniquePtr<EVP_PKEY_CTX> ctx(
         EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr));
@@ -1088,13 +1079,15 @@ TEST(EVPExtraTest, Parameters) {
   };
 
   // RSA keys have no parameters.
-  bssl::UniquePtr<EVP_PKEY> rsa = new_pkey_with_type(EVP_PKEY_RSA);
+  bssl::UniquePtr<EVP_PKEY> rsa = LoadExampleRSAKey();
   ASSERT_TRUE(rsa);
   EXPECT_FALSE(EVP_PKEY_missing_parameters(rsa.get()));
 
-  // EC keys have parameters.
-  bssl::UniquePtr<EVP_PKEY> ec_no_params = new_pkey_with_type(EVP_PKEY_EC);
+  // EC keys have parameters, but it is possible to initialize an |EVP_PKEY|
+  // with a completely empty |EC_KEY|.
+  bssl::UniquePtr<EVP_PKEY> ec_no_params(EVP_PKEY_new());
   ASSERT_TRUE(ec_no_params);
+  ASSERT_TRUE(EVP_PKEY_assign_EC_KEY(ec_no_params.get(), EC_KEY_new()));
   EXPECT_TRUE(EVP_PKEY_missing_parameters(ec_no_params.get()));
 
   bssl::UniquePtr<EVP_PKEY> p256 = new_pkey_with_curve(NID_X9_62_prime256v1);
@@ -1249,4 +1242,24 @@ TEST(EVPExtraTest, CustomCurve) {
   cbb.Reset();
   ASSERT_TRUE(CBB_init(cbb.get(), 0));
   EXPECT_FALSE(EVP_marshal_private_key(cbb.get(), pkey.get()));
+}
+
+// APIs should avoid creating an |EVP_PKEY| that is missing its underlying data.
+// In some cases, we are stuck with this due to OpenSSL compatibility, but it is
+// preferable to reduce the number of kinds of half-empty states.
+TEST(EVPExtraTest, NoHalfEmptyKeys) {
+  bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
+  ASSERT_TRUE(pkey);
+
+  EXPECT_FALSE(EVP_PKEY_set_type(pkey.get(), EVP_PKEY_RSA));
+  EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
+
+  EXPECT_FALSE(EVP_PKEY_set_type(pkey.get(), EVP_PKEY_EC));
+  EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
+
+  EXPECT_FALSE(EVP_PKEY_set_type(pkey.get(), EVP_PKEY_DH));
+  EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
+
+  EXPECT_FALSE(EVP_PKEY_set_type(pkey.get(), EVP_PKEY_DSA));
+  EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
 }
