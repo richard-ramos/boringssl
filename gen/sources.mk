@@ -543,7 +543,6 @@ boringssl_crypto_headers := \
   include/openssl/evp.h \
   include/openssl/evp_errors.h \
   include/openssl/ex_data.h \
-  include/openssl/experimental/kyber.h \
   include/openssl/hkdf.h \
   include/openssl/hmac.h \
   include/openssl/hpke.h \
