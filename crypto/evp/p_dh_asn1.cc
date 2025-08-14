@@ -126,7 +126,7 @@ int EVP_PKEY_assign_DH(EVP_PKEY *pkey, DH *key) {
 }
 
 DH *EVP_PKEY_get0_DH(const EVP_PKEY *pkey) {
-  if (pkey->type != EVP_PKEY_DH) {
+  if (EVP_PKEY_id(pkey) != EVP_PKEY_DH) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_EXPECTING_A_DH_KEY);
     return NULL;
   }

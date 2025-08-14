@@ -297,7 +297,7 @@ int EVP_PKEY_derive_set_peer(EVP_PKEY_CTX *ctx, EVP_PKEY *peer) {
     return 0;
   }
 
-  if (ctx->pkey->type != peer->type) {
+  if (EVP_PKEY_id(ctx->pkey.get()) != EVP_PKEY_id(peer)) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DIFFERENT_KEY_TYPES);
     return 0;
   }

@@ -30,6 +30,8 @@ typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
 typedef struct evp_pkey_method_st EVP_PKEY_METHOD;
 
 struct evp_pkey_asn1_method_st {
+  // type contains one of the |EVP_PKEY_*| values and corresponds to the OID in
+  // the key type's AlgorithmIdentifier.
   int pkey_id;
   uint8_t oid[9];
   uint8_t oid_len;
@@ -94,15 +96,11 @@ struct evp_pkey_asn1_method_st {
 struct evp_pkey_st {
   CRYPTO_refcount_t references;
 
-  // type contains one of the EVP_PKEY_* values or NID_undef and determines
-  // the type of |pkey|.
-  int type;
-
-  // pkey contains a pointer to a structure dependent on |type|.
+  // pkey contains a pointer to a structure dependent on |ameth|.
   void *pkey;
 
-  // ameth contains a pointer to a method table that contains many ASN.1
-  // methods for the key type.
+  // ameth contains a pointer to a method table that determines the key type, or
+  // nullptr if the key is empty.
   const EVP_PKEY_ASN1_METHOD *ameth;
 } /* EVP_PKEY */;
 

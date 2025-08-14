@@ -182,7 +182,7 @@ int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key) {
 }
 
 RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
-  if (pkey->type != EVP_PKEY_RSA) {
+  if (EVP_PKEY_id(pkey) != EVP_PKEY_RSA) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_EXPECTING_AN_RSA_KEY);
     return NULL;
   }

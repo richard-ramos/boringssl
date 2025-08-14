@@ -209,7 +209,7 @@ EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **out, const uint8_t **inp,
     if (ret == nullptr) {
       return nullptr;
     }
-    if (ret->type != type) {
+    if (EVP_PKEY_id(ret.get()) != type) {
       OPENSSL_PUT_ERROR(EVP, EVP_R_DIFFERENT_KEY_TYPES);
       return nullptr;
     }
@@ -279,7 +279,7 @@ EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **out, const uint8_t **inp, long len) {
 }
 
 int i2d_PublicKey(const EVP_PKEY *key, uint8_t **outp) {
-  switch (key->type) {
+  switch (EVP_PKEY_id(key)) {
     case EVP_PKEY_RSA:
       return i2d_RSAPublicKey(EVP_PKEY_get0_RSA(key), outp);
     case EVP_PKEY_DSA:

@@ -257,7 +257,7 @@ int EVP_PKEY_assign_DSA(EVP_PKEY *pkey, DSA *key) {
 }
 
 DSA *EVP_PKEY_get0_DSA(const EVP_PKEY *pkey) {
-  if (pkey->type != EVP_PKEY_DSA) {
+  if (EVP_PKEY_id(pkey) != EVP_PKEY_DSA) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_EXPECTING_A_DSA_KEY);
     return nullptr;
   }

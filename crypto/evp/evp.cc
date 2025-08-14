@@ -41,7 +41,6 @@ EVP_PKEY *EVP_PKEY_new(void) {
     return NULL;
   }
 
-  ret->type = EVP_PKEY_NONE;
   ret->references = 1;
   return ret;
 }
@@ -51,7 +50,6 @@ static void free_it(EVP_PKEY *pkey) {
     pkey->ameth->pkey_free(pkey);
   }
   pkey->pkey = nullptr;
-  pkey->type = EVP_PKEY_NONE;
   pkey->ameth = nullptr;
 }
 
@@ -81,7 +79,7 @@ int EVP_PKEY_is_opaque(const EVP_PKEY *pkey) {
 }
 
 int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
-  if (a->type != b->type) {
+  if (EVP_PKEY_id(a) != EVP_PKEY_id(b)) {
     return -1;
   }
 
@@ -104,9 +102,9 @@ int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
 }
 
 int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from) {
-  if (to->type == EVP_PKEY_NONE) {
+  if (EVP_PKEY_id(to) == EVP_PKEY_NONE) {
     evp_pkey_set_method(to, from->ameth);
-  } else if (to->type != from->type) {
+  } else if (EVP_PKEY_id(to) != EVP_PKEY_id(from)) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DIFFERENT_KEY_TYPES);
     return 0;
   }
@@ -155,7 +153,9 @@ int EVP_PKEY_bits(const EVP_PKEY *pkey) {
   return 0;
 }
 
-int EVP_PKEY_id(const EVP_PKEY *pkey) { return pkey->type; }
+int EVP_PKEY_id(const EVP_PKEY *pkey) {
+  return pkey->ameth != nullptr ? pkey->ameth->pkey_id : EVP_PKEY_NONE;
+}
 
 // evp_pkey_asn1_find returns the ASN.1 method table for the given |nid|, which
 // should be one of the |EVP_PKEY_*| values. It returns NULL if |nid| is
@@ -180,7 +180,6 @@ static const EVP_PKEY_ASN1_METHOD *evp_pkey_asn1_find(int nid) {
 void evp_pkey_set_method(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method) {
   free_it(pkey);
   pkey->ameth = method;
-  pkey->type = pkey->ameth->pkey_id;
 }
 
 int EVP_PKEY_type(int nid) {
@@ -311,7 +310,7 @@ int EVP_PKEY_get_raw_public_key(const EVP_PKEY *pkey, uint8_t *out,
 }
 
 int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
-  if (a->type != b->type) {
+  if (EVP_PKEY_id(a) != EVP_PKEY_id(b)) {
     return -1;
   }
   if (a->ameth && a->ameth->param_cmp) {
