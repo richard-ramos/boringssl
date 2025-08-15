@@ -463,10 +463,33 @@ OPENSSL_EXPORT int EVP_PBE_scrypt(const char *password, size_t password_len,
                                   size_t key_len);
 
 
-// Public key contexts.
+// Operations.
 //
-// |EVP_PKEY_CTX| objects hold the context of an operation (e.g. signing or
-// encrypting) that uses a public key.
+// |EVP_PKEY_CTX| objects hold the context for an operation (e.g. signing or
+// encrypting) that uses an |EVP_PKEY|. They are used to configure
+// algorithm-specific parameters for the operation before performing the
+// operation. The general pattern for performing an operation in EVP is:
+//
+// 1. Construct an |EVP_PKEY_CTX|, either with |EVP_PKEY_CTX_new| (operations
+//    using a key, like signing) or |EVP_PKEY_CTX_new_id| (operations not using
+//    an existing key, like key generation).
+//
+// 2. Initialize it for an operation. For example, |EVP_PKEY_sign_init|
+//    initializes an |EVP_PKEY_CTX| for signing.
+//
+// 3. Configure algorithm-specific parameters for the operation by calling
+//    control functions on the |EVP_PKEY_CTX|. Some functions are generic, such
+//    as |EVP_PKEY_CTX_set_signature_md|, and some are specific to an algorithm,
+//    such as |EVP_PKEY_CTX_set_rsa_padding|.
+//
+// 4. Perform the operation. For example, |EVP_PKEY_sign| signs with the
+//    corresponding parameters.
+//
+// 5. Release the |EVP_PKEY_CTX| with |EVP_PKEY_CTX_free|.
+//
+// Each |EVP_PKEY| algorithm interprets operations and parameters differently.
+// Not all algorithms support all operations. Functions will fail if the
+// algorithm does not support the parameter or operation.
 
 // EVP_PKEY_CTX_new allocates a fresh |EVP_PKEY_CTX| for use with |pkey|. It
 // returns the context or NULL on error.
