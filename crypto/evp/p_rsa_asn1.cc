@@ -179,8 +179,7 @@ int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key) {
   if (key == nullptr) {
     return 0;
   }
-  evp_pkey_set_method(pkey, &rsa_asn1_meth);
-  pkey->pkey = key;
+  evp_pkey_set0(pkey, &rsa_asn1_meth, key);
   return 1;
 }
 

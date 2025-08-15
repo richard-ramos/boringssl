@@ -45,14 +45,6 @@ EVP_PKEY *EVP_PKEY_new(void) {
   return ret;
 }
 
-static void free_it(EVP_PKEY *pkey) {
-  if (pkey->ameth && pkey->ameth->pkey_free) {
-    pkey->ameth->pkey_free(pkey);
-  }
-  pkey->pkey = nullptr;
-  pkey->ameth = nullptr;
-}
-
 void EVP_PKEY_free(EVP_PKEY *pkey) {
   if (pkey == NULL) {
     return;
@@ -62,7 +54,7 @@ void EVP_PKEY_free(EVP_PKEY *pkey) {
     return;
   }
 
-  free_it(pkey);
+  evp_pkey_set0(pkey, nullptr, nullptr);
   OPENSSL_free(pkey);
 }
 
@@ -103,7 +95,11 @@ int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
 
 int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from) {
   if (EVP_PKEY_id(to) == EVP_PKEY_NONE) {
-    evp_pkey_set_method(to, from->ameth);
+    // TODO(crbug.com/42290409): This shouldn't leave |to| in a half-empty state
+    // on error. The complexity here largely comes from parameterless DSA keys,
+    // which we no longer support, so this function can probably be trimmed
+    // down.
+    evp_pkey_set0(to, from->ameth, nullptr);
   } else if (EVP_PKEY_id(to) != EVP_PKEY_id(from)) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DIFFERENT_KEY_TYPES);
     return 0;
@@ -127,8 +123,9 @@ int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from) {
     return from->ameth->param_copy(to, from);
   }
 
-  // TODO(https://crbug.com/boringssl/536): If the algorithm takes no
-  // parameters, copying them should vacuously succeed.
+  // TODO(https://crbug.com/42290406): If the algorithm takes no parameters,
+  // copying them should vacuously succeed. Better yet, simplify this whole
+  // notion of parameter copying above.
   return 0;
 }
 
@@ -157,9 +154,13 @@ int EVP_PKEY_id(const EVP_PKEY *pkey) {
   return pkey->ameth != nullptr ? pkey->ameth->pkey_id : EVP_PKEY_NONE;
 }
 
-void evp_pkey_set_method(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method) {
-  free_it(pkey);
+void evp_pkey_set0(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method,
+                   void *pkey_data) {
+  if (pkey->ameth && pkey->ameth->pkey_free) {
+    pkey->ameth->pkey_free(pkey);
+  }
   pkey->ameth = method;
+  pkey->pkey = pkey_data;
 }
 
 int EVP_PKEY_type(int nid) {
@@ -192,7 +193,7 @@ int EVP_PKEY_set_type(EVP_PKEY *pkey, int type) {
   if (pkey && pkey->pkey) {
     // Some callers rely on |pkey| getting cleared even if |type| is
     // unsupported, usually setting |type| to |EVP_PKEY_NONE|.
-    free_it(pkey);
+    evp_pkey_set0(pkey, nullptr, nullptr);
   }
 
   // This function broadly isn't useful. It initializes |EVP_PKEY| for a type,
@@ -209,7 +210,7 @@ int EVP_PKEY_set_type(EVP_PKEY *pkey, int type) {
   }
 
   if (pkey) {
-    evp_pkey_set_method(pkey, ameth);
+    evp_pkey_set0(pkey, ameth, nullptr);
   }
 
   return 1;
@@ -233,12 +234,8 @@ EVP_PKEY *EVP_PKEY_new_raw_private_key(int type, ENGINE *unused,
   }
 
   bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
-  if (ret == nullptr) {
-    return nullptr;
-  }
-  evp_pkey_set_method(ret.get(), method);
-
-  if (!ret->ameth->set_priv_raw(ret.get(), in, len)) {
+  if (ret == nullptr ||  //
+      !method->set_priv_raw(ret.get(), in, len)) {
     return nullptr;
   }
 
@@ -263,12 +260,8 @@ EVP_PKEY *EVP_PKEY_new_raw_public_key(int type, ENGINE *unused,
   }
 
   bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
-  if (ret == nullptr) {
-    return nullptr;
-  }
-  evp_pkey_set_method(ret.get(), method);
-
-  if (!ret->ameth->set_pub_raw(ret.get(), in, len)) {
+  if (ret == nullptr ||  //
+      !method->set_pub_raw(ret.get(), in, len)) {
     return nullptr;
   }
 

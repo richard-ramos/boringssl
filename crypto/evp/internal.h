@@ -259,9 +259,11 @@ extern const EVP_PKEY_CTX_METHOD x25519_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD hkdf_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD dh_pkey_meth;
 
-// evp_pkey_set_method behaves like |EVP_PKEY_set_type|, but takes a pointer to
-// a method table. This avoids depending on every |EVP_PKEY_ASN1_METHOD|.
-void evp_pkey_set_method(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method);
+// evp_pkey_set0 sets |pkey|'s method to |method| and data to |pkey_data|,
+// freeing any key that may previously have been configured. This function takes
+// ownership of |pkey_data|, which must be of the type expected by |method|.
+void evp_pkey_set0(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method,
+                   void *pkey_data);
 
 
 #if defined(__cplusplus)
