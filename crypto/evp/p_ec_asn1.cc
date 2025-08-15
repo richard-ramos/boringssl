@@ -265,9 +265,12 @@ int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key) {
 }
 
 int EVP_PKEY_assign_EC_KEY(EVP_PKEY *pkey, EC_KEY *key) {
+  if (key == nullptr) {
+    return 0;
+  }
   evp_pkey_set_method(pkey, &ec_asn1_meth);
   pkey->pkey = key;
-  return key != NULL;
+  return 1;
 }
 
 EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {

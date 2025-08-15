@@ -1253,13 +1253,21 @@ TEST(EVPExtraTest, NoHalfEmptyKeys) {
 
   EXPECT_FALSE(EVP_PKEY_set_type(pkey.get(), EVP_PKEY_RSA));
   EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
+  EXPECT_FALSE(EVP_PKEY_set1_RSA(pkey.get(), nullptr));
+  EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
 
   EXPECT_FALSE(EVP_PKEY_set_type(pkey.get(), EVP_PKEY_EC));
+  EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
+  EXPECT_FALSE(EVP_PKEY_set1_EC_KEY(pkey.get(), nullptr));
   EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
 
   EXPECT_FALSE(EVP_PKEY_set_type(pkey.get(), EVP_PKEY_DH));
   EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
+  EXPECT_FALSE(EVP_PKEY_set1_DH(pkey.get(), nullptr));
+  EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
 
   EXPECT_FALSE(EVP_PKEY_set_type(pkey.get(), EVP_PKEY_DSA));
+  EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
+  EXPECT_FALSE(EVP_PKEY_set1_DSA(pkey.get(), nullptr));
   EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
 }

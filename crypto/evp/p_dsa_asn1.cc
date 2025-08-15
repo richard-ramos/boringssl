@@ -251,9 +251,12 @@ int EVP_PKEY_set1_DSA(EVP_PKEY *pkey, DSA *key) {
 }
 
 int EVP_PKEY_assign_DSA(EVP_PKEY *pkey, DSA *key) {
+  if (key == nullptr) {
+    return 0;
+  }
   evp_pkey_set_method(pkey, &dsa_asn1_meth);
   pkey->pkey = key;
-  return key != nullptr;
+  return 1;
 }
 
 DSA *EVP_PKEY_get0_DSA(const EVP_PKEY *pkey) {
