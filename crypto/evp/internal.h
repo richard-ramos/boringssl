@@ -178,8 +178,6 @@ struct evp_pkey_ctx_st {
 
   // Method associated with this operation
   const EVP_PKEY_CTX_METHOD *pmeth = nullptr;
-  // Engine that implements this method or nullptr if builtin
-  ENGINE *engine = nullptr;
   // Key: may be nullptr
   bssl::UniquePtr<EVP_PKEY> pkey;
   // Peer key for key agreement, may be nullptr

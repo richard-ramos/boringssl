@@ -40,14 +40,13 @@ static const EVP_PKEY_CTX_METHOD *evp_pkey_meth_find(int type) {
   return nullptr;
 }
 
-static EVP_PKEY_CTX *evp_pkey_ctx_new(EVP_PKEY *pkey, ENGINE *e,
+static EVP_PKEY_CTX *evp_pkey_ctx_new(EVP_PKEY *pkey,
                                       const EVP_PKEY_CTX_METHOD *pmeth) {
   bssl::UniquePtr<EVP_PKEY_CTX> ret = bssl::MakeUnique<EVP_PKEY_CTX>();
   if (!ret) {
     return nullptr;
   }
 
-  ret->engine = e;
   ret->pmeth = pmeth;
   ret->operation = EVP_PKEY_OP_UNDEFINED;
   ret->pkey = bssl::UpRef(pkey);
@@ -73,7 +72,7 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_new(EVP_PKEY *pkey, ENGINE *e) {
     return NULL;
   }
 
-  return evp_pkey_ctx_new(pkey, e, pkey_method);
+  return evp_pkey_ctx_new(pkey, pkey_method);
 }
 
 EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int id, ENGINE *e) {
@@ -84,7 +83,7 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int id, ENGINE *e) {
     return NULL;
   }
 
-  return evp_pkey_ctx_new(NULL, e, pkey_method);
+  return evp_pkey_ctx_new(NULL, pkey_method);
 }
 
 evp_pkey_ctx_st::~evp_pkey_ctx_st() {
@@ -106,7 +105,6 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(EVP_PKEY_CTX *ctx) {
   }
 
   ret->pmeth = ctx->pmeth;
-  ret->engine = ctx->engine;
   ret->operation = ctx->operation;
   ret->pkey = bssl::UpRef(ctx->pkey);
   ret->peerkey = bssl::UpRef(ctx->peerkey);
