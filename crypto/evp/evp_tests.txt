@@ -252,6 +252,21 @@ PrivateKey = Ed25519-Spec
 Type = Ed25519
 Input = 302e020100300506032b657004220420d4ee72dbf913584ad5b6d8f1f769f8ad3afe7c28cbf1d4fbe097a88f44755842
 
+# Unsupported algorithms in the public and private key parser should be
+# rejected with EVP_R_UNSUPPORTED_ALGORITHM. This includes if the
+# subjectPublicKey BIT STRING field in the SPKI isn't a whole number of bytes.
+# Although all supported algorithms use a whole number of bytes, and it would be
+# unreasonable to define one that doesn't, such an SPKI is not necessarily a
+# syntax error when the algorithm is unknown.
+
+PublicKey = UnknownAlgorithm-Public
+Input = 3014300e060c2a864886f712040184b70902030205e0
+Error = UNSUPPORTED_ALGORITHM
+
+PrivateKey = UnknownAlgorithm-Private
+Input = 301b020100300e060c2a864886f712040184b709020406040474657374
+Error = UNSUPPORTED_ALGORITHM
+
 
 # RSA tests
 
