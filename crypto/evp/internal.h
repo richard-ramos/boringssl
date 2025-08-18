@@ -30,8 +30,8 @@ typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
 typedef struct evp_pkey_method_st EVP_PKEY_METHOD;
 
 struct evp_pkey_asn1_method_st {
-  // type contains one of the |EVP_PKEY_*| values and corresponds to the OID in
-  // the key type's AlgorithmIdentifier.
+  // pkey_id contains one of the |EVP_PKEY_*| values and corresponds to the OID
+  // in the key type's AlgorithmIdentifier.
   int pkey_id;
   uint8_t oid[9];
   uint8_t oid_len;
