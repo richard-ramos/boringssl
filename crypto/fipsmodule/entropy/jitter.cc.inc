@@ -37,8 +37,6 @@
 
 #if defined(__x86_64__)
 #include <x86intrin.h>
-#elif defined(__aarch64__)
-#include <arm_acle.h>
 #endif
 
 
@@ -49,7 +47,15 @@ namespace {
 #if defined(__x86_64__)
 static inline uint64_t GetTimestamp() { return _rdtsc(); }
 #elif defined(__aarch64__)
-static inline uint64_t GetTimestamp() { return __arm_rsr64("cntvct_el0"); }
+static inline uint64_t GetTimestamp() {
+  // Ideally this would use __arm_rsr64 from <arm_acle.h>. Clang has supported
+  // it Clang 3.7 (2016), but GCC did not add it until GCC 14.1.0 (2024). See
+  // https://crbug.com/440670941. When our minimum GCC is past that point,
+  // switch this back to __arm_rsr64.
+  uint64_t ret;
+  __asm__ volatile("mrs %0, cntvct_el0" : "=r"(ret));
+  return ret;
+}
 #else
 static inline uint64_t GetTimestamp() {
   struct timespec ts;
