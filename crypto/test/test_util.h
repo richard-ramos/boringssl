@@ -67,7 +67,7 @@ std::ostream &operator<<(std::ostream &os, const Bytes &in);
 // DecodeHex decodes |in| from hexadecimal and writes the output to |out|. It
 // returns true on success and false if |in| is not a valid hexadecimal byte
 // string.
-bool DecodeHex(std::vector<uint8_t> *out, const std::string &in);
+bool DecodeHex(std::vector<uint8_t> *out, std::string_view in);
 
 // EncodeHex returns |in| encoded in hexadecimal.
 std::string EncodeHex(bssl::Span<const uint8_t> in);

@@ -42,7 +42,7 @@ std::ostream &operator<<(std::ostream &os, const Bytes &in) {
   return os;
 }
 
-bool DecodeHex(std::vector<uint8_t> *out, const std::string &in) {
+bool DecodeHex(std::vector<uint8_t> *out, std::string_view in) {
   out->clear();
   if (in.size() % 2 != 0) {
     return false;
