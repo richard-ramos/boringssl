@@ -176,9 +176,8 @@ impl PublicKey {
     pub fn to_der_subject_public_key_info(&self) -> Buffer {
         // Safety: this only copies from the `self.0` buffer.
         let mut pkey = scoped::EvpPkey::from_ptr(unsafe {
-            bssl_sys::EVP_PKEY_new_raw_public_key(
-                bssl_sys::EVP_PKEY_ED25519,
-                /*unused=*/ core::ptr::null_mut(),
+            bssl_sys::EVP_PKEY_from_raw_public_key(
+                bssl_sys::EVP_pkey_ed25519(),
                 self.0.as_ffi_ptr(),
                 PUBLIC_KEY_LEN,
             )

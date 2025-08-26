@@ -215,8 +215,8 @@ static bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
     if (!t->GetBytes(&raw, "RawPublic")) {
       return false;
     }
-    new_key.reset(EVP_PKEY_new_raw_public_key(alg_info.pkey_id, nullptr,
-                                              raw.data(), raw.size()));
+    new_key.reset(
+        EVP_PKEY_from_raw_public_key(alg_info.alg, raw.data(), raw.size()));
     if (new_key == nullptr) {
       return false;
     }
@@ -227,8 +227,8 @@ static bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
     if (!t->GetBytes(&raw, "RawPrivate")) {
       return false;
     }
-    new_key.reset(EVP_PKEY_new_raw_private_key(alg_info.pkey_id, nullptr,
-                                               raw.data(), raw.size()));
+    new_key.reset(
+        EVP_PKEY_from_raw_private_key(alg_info.alg, raw.data(), raw.size()));
     if (new_key == nullptr) {
       return false;
     }

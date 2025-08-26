@@ -344,19 +344,17 @@ OPENSSL_EXPORT int EVP_marshal_private_key(CBB *cbb, const EVP_PKEY *key);
 // RFC 7748 and RFC 8032, respectively. Note the RFC 8032 private key format is
 // the 32-byte prefix of |ED25519_sign|'s 64-byte private key.
 
-// EVP_PKEY_new_raw_private_key returns a newly allocated |EVP_PKEY| wrapping a
-// private key of the specified type. It returns one on success and zero on
-// error.
-OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_raw_private_key(int type, ENGINE *unused,
+// EVP_PKEY_from_raw_private_key interprets |in| as a raw private key of type
+// |alg| and returns a newly-allocated |EVP_PKEY|, or nullptr on error.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_from_raw_private_key(const EVP_PKEY_ALG *alg,
+                                                       const uint8_t *in,
+                                                       size_t len);
+
+// EVP_PKEY_from_raw_public_key interprets |in| as a raw public key of type
+// |alg| and returns a newly-allocated |EVP_PKEY|, or nullptr on error.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_from_raw_public_key(const EVP_PKEY_ALG *alg,
                                                       const uint8_t *in,
                                                       size_t len);
-
-// EVP_PKEY_new_raw_public_key returns a newly allocated |EVP_PKEY| wrapping a
-// public key of the specified type. It returns one on success and zero on
-// error.
-OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_raw_public_key(int type, ENGINE *unused,
-                                                     const uint8_t *in,
-                                                     size_t len);
 
 // EVP_PKEY_get_raw_private_key outputs the private key for |pkey| in raw form.
 // If |out| is NULL, it sets |*out_len| to the size of the raw private key.
@@ -1202,6 +1200,26 @@ OPENSSL_EXPORT int EVP_PKEY_assign(EVP_PKEY *pkey, int type, void *key);
 
 // EVP_PKEY_type returns |nid|.
 OPENSSL_EXPORT int EVP_PKEY_type(int nid);
+
+// EVP_PKEY_new_raw_private_key interprets |in| as a raw private key of type
+// |type|, which must be an |EVP_PKEY_*| constant, such as |EVP_PKEY_X25519|,
+// and returns a newly-allocated |EVP_PKEY|, or nullptr on error.
+//
+// Prefer |EVP_PKEY_from_raw_private_key|, which allows dead code elimination to
+// discard algorithms that aren't reachable from the caller.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_raw_private_key(int type, ENGINE *unused,
+                                                      const uint8_t *in,
+                                                      size_t len);
+
+// EVP_PKEY_new_raw_public_key interprets |in| as a raw public key of type
+// |type|, which must be an |EVP_PKEY_*| constant, such as |EVP_PKEY_X25519|,
+// and returns a newly-allocated |EVP_PKEY|, or nullptr on error.
+//
+// Prefer |EVP_PKEY_from_raw_private_key|, which allows dead code elimination to
+// discard algorithms that aren't reachable from the caller.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_raw_public_key(int type, ENGINE *unused,
+                                                     const uint8_t *in,
+                                                     size_t len);
 
 
 // Preprocessor compatibility section (hidden).

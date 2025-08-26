@@ -704,8 +704,8 @@ TEST(EVPExtraTest, Ed25519) {
   };
 
   // Create a public key.
-  bssl::UniquePtr<EVP_PKEY> pubkey(EVP_PKEY_new_raw_public_key(
-      EVP_PKEY_ED25519, nullptr, kPublicKey, sizeof(kPublicKey)));
+  bssl::UniquePtr<EVP_PKEY> pubkey(EVP_PKEY_from_raw_public_key(
+      EVP_pkey_ed25519(), kPublicKey, sizeof(kPublicKey)));
   ASSERT_TRUE(pubkey);
   EXPECT_EQ(EVP_PKEY_ED25519, EVP_PKEY_id(pubkey.get()));
 
@@ -753,8 +753,8 @@ TEST(EVPExtraTest, Ed25519) {
   cbb.Reset();
 
   // Create a private key.
-  bssl::UniquePtr<EVP_PKEY> privkey(EVP_PKEY_new_raw_private_key(
-      EVP_PKEY_ED25519, NULL, kPrivateKeySeed, sizeof(kPrivateKeySeed)));
+  bssl::UniquePtr<EVP_PKEY> privkey(EVP_PKEY_from_raw_private_key(
+      EVP_pkey_ed25519(), kPrivateKeySeed, sizeof(kPrivateKeySeed)));
   ASSERT_TRUE(privkey);
   EXPECT_EQ(EVP_PKEY_ED25519, EVP_PKEY_id(privkey.get()));
 
@@ -797,8 +797,8 @@ TEST(EVPExtraTest, Ed25519) {
   EXPECT_EQ(1, EVP_PKEY_cmp(pubkey.get(), privkey.get()));
 
   static const uint8_t kZeros[32] = {0};
-  bssl::UniquePtr<EVP_PKEY> pubkey2(EVP_PKEY_new_raw_public_key(
-      EVP_PKEY_ED25519, nullptr, kZeros, sizeof(kZeros)));
+  bssl::UniquePtr<EVP_PKEY> pubkey2(
+      EVP_PKEY_from_raw_public_key(EVP_pkey_ed25519(), kZeros, sizeof(kZeros)));
   ASSERT_TRUE(pubkey2);
   EXPECT_EQ(0, EVP_PKEY_cmp(pubkey.get(), pubkey2.get()));
   EXPECT_EQ(0, EVP_PKEY_cmp(privkey.get(), pubkey2.get()));
@@ -1133,6 +1133,10 @@ TEST(EVPExtraTest, RawKeyUnsupported) {
       EVP_PKEY_new_raw_public_key(EVP_PKEY_RSA, nullptr, kKey, sizeof(kKey)));
   EXPECT_FALSE(
       EVP_PKEY_new_raw_private_key(EVP_PKEY_RSA, nullptr, kKey, sizeof(kKey)));
+  EXPECT_FALSE(
+      EVP_PKEY_from_raw_public_key(EVP_pkey_rsa(), kKey, sizeof(kKey)));
+  EXPECT_FALSE(
+      EVP_PKEY_from_raw_private_key(EVP_pkey_rsa(), kKey, sizeof(kKey)));
 }
 
 // The default salt length for PSS should be |RSA_PSS_SALTLEN_DIGEST|.
