@@ -310,11 +310,11 @@ static bool SpeedRSA(const std::string &selected) {
       {"RSA 4096", kDERRSAPrivate4096, kDERRSAPrivate4096Len},
   };
 
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kRSAKeys); i++) {
-    const std::string name = kRSAKeys[i].name;
+  for (const auto &key_info : kRSAKeys) {
+    const std::string name = key_info.name;
 
     bssl::UniquePtr<RSA> key(
-        RSA_private_key_from_bytes(kRSAKeys[i].key, kRSAKeys[i].key_len));
+        RSA_private_key_from_bytes(key_info.key, key_info.key_len));
     if (key == nullptr) {
       fprintf(stderr, "Failed to parse %s key.\n", name.c_str());
       ERR_print_errors_fp(stderr);
@@ -385,7 +385,7 @@ static bool SpeedRSA(const std::string &selected) {
 
     if (!TimeFunctionParallel(&results, [&]() -> bool {
           return bssl::UniquePtr<RSA>(RSA_private_key_from_bytes(
-                     kRSAKeys[i].key, kRSAKeys[i].key_len)) != nullptr;
+                     key_info.key, key_info.key_len)) != nullptr;
         })) {
       fprintf(stderr, "Failed to parse %s key.\n", name.c_str());
       ERR_print_errors_fp(stderr);

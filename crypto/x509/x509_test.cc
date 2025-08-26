@@ -15,6 +15,7 @@
 #include <limits.h>
 
 #include <algorithm>
+#include <iterator>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -3092,8 +3093,8 @@ wr6JtaX2G+pOmwcSPymZC4u2TncAP7KHgS8UGcMw8CE=
   bssl::UniquePtr<STACK_OF(X509_INFO)> infos(
       PEM_X509_INFO_read_bio(bio.get(), nullptr, nullptr, nullptr));
   ASSERT_TRUE(infos);
-  ASSERT_EQ(OPENSSL_ARRAY_SIZE(kExpected), sk_X509_INFO_num(infos.get()));
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kExpected); i++) {
+  ASSERT_EQ(std::size(kExpected), sk_X509_INFO_num(infos.get()));
+  for (size_t i = 0; i < std::size(kExpected); i++) {
     SCOPED_TRACE(i);
     check_info(&kExpected[i], sk_X509_INFO_value(infos.get(), i));
   }
@@ -3103,13 +3104,12 @@ wr6JtaX2G+pOmwcSPymZC4u2TncAP7KHgS8UGcMw8CE=
   ASSERT_TRUE(bio);
   ASSERT_EQ(infos.get(),
             PEM_X509_INFO_read_bio(bio.get(), infos.get(), nullptr, nullptr));
-  ASSERT_EQ(2 * OPENSSL_ARRAY_SIZE(kExpected), sk_X509_INFO_num(infos.get()));
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kExpected); i++) {
+  ASSERT_EQ(2 * std::size(kExpected), sk_X509_INFO_num(infos.get()));
+  for (size_t i = 0; i < std::size(kExpected); i++) {
     SCOPED_TRACE(i);
     check_info(&kExpected[i], sk_X509_INFO_value(infos.get(), i));
-    check_info(
-        &kExpected[i],
-        sk_X509_INFO_value(infos.get(), i + OPENSSL_ARRAY_SIZE(kExpected)));
+    check_info(&kExpected[i],
+               sk_X509_INFO_value(infos.get(), i + std::size(kExpected)));
   }
 
   // Gracefully handle errors in both the append and fresh cases.
@@ -3125,7 +3125,7 @@ wr6JtaX2G+pOmwcSPymZC4u2TncAP7KHgS8UGcMw8CE=
   ASSERT_TRUE(bio);
   EXPECT_FALSE(
       PEM_X509_INFO_read_bio(bio.get(), infos.get(), nullptr, nullptr));
-  EXPECT_EQ(2 * OPENSSL_ARRAY_SIZE(kExpected), sk_X509_INFO_num(infos.get()));
+  EXPECT_EQ(2 * std::size(kExpected), sk_X509_INFO_num(infos.get()));
 }
 
 TEST(X509Test, ReadBIOEmpty) {
@@ -4037,7 +4037,7 @@ TEST(X509Test, GeneralName) {
   };
 
   // Every name should be equal to itself and not equal to any others.
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kNames); i++) {
+  for (size_t i = 0; i < std::size(kNames); i++) {
     SCOPED_TRACE(Bytes(kNames[i]));
 
     const uint8_t *ptr = kNames[i].data();
@@ -4052,7 +4052,7 @@ TEST(X509Test, GeneralName) {
     bssl::UniquePtr<uint8_t> free_enc(enc);
     EXPECT_EQ(Bytes(enc, enc_len), Bytes(kNames[i]));
 
-    for (size_t j = 0; j < OPENSSL_ARRAY_SIZE(kNames); j++) {
+    for (size_t j = 0; j < std::size(kNames); j++) {
       SCOPED_TRACE(Bytes(kNames[j]));
 
       ptr = kNames[j].data();

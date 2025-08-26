@@ -73,9 +73,9 @@ const EVP_MD *EVP_get_digestbynid(int nid) {
     return NULL;
   }
 
-  for (unsigned i = 0; i < OPENSSL_ARRAY_SIZE(nid_to_digest_mapping); i++) {
-    if (nid_to_digest_mapping[i].nid == nid) {
-      return nid_to_digest_mapping[i].md_func();
+  for (const auto &mapping : nid_to_digest_mapping) {
+    if (mapping.nid == nid) {
+      return mapping.md_func();
     }
   }
 
@@ -207,16 +207,16 @@ int EVP_marshal_digest_algorithm_no_params(CBB *cbb, const EVP_MD *md) {
 }
 
 const EVP_MD *EVP_get_digestbyname(const char *name) {
-  for (unsigned i = 0; i < OPENSSL_ARRAY_SIZE(nid_to_digest_mapping); i++) {
-    const char *short_name = nid_to_digest_mapping[i].short_name;
-    const char *long_name = nid_to_digest_mapping[i].long_name;
+  for (const auto &mapping : nid_to_digest_mapping) {
+    const char *short_name = mapping.short_name;
+    const char *long_name = mapping.long_name;
     if ((short_name && strcmp(short_name, name) == 0) ||
         (long_name && strcmp(long_name, name) == 0)) {
-      return nid_to_digest_mapping[i].md_func();
+      return mapping.md_func();
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static void blake2b256_init(EVP_MD_CTX *ctx) {

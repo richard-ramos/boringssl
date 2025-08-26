@@ -101,12 +101,12 @@ static const SSL_SIGNATURE_ALGORITHM kSignatureAlgorithms[] = {
 };
 
 static const SSL_SIGNATURE_ALGORITHM *get_signature_algorithm(uint16_t sigalg) {
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kSignatureAlgorithms); i++) {
-    if (kSignatureAlgorithms[i].sigalg == sigalg) {
-      return &kSignatureAlgorithms[i];
+  for (const auto &alg : kSignatureAlgorithms) {
+    if (alg.sigalg == sigalg) {
+      return &alg;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 bssl::UniquePtr<EVP_PKEY> ssl_parse_peer_subject_public_key_info(
