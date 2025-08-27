@@ -172,6 +172,14 @@ void asn1_type_cleanup(ASN1_TYPE *a);
 // ASN.1 PrintableString, and zero otherwise.
 int asn1_is_printable(uint32_t value);
 
+// asn1_string_init initializes |str|, which may be uninitialized, with type
+// |type|.
+void asn1_string_init(ASN1_STRING *str, int type);
+
+// asn1_string_cleanup releases memory associated with |str|'s value, without
+// freeing |str| itself.
+void asn1_string_cleanup(ASN1_STRING *str);
+
 // asn1_bit_string_length returns the number of bytes in |str| and sets
 // |*out_padding_bits| to the number of padding bits.
 //
@@ -179,6 +187,15 @@ int asn1_is_printable(uint32_t value);
 // handle the non-|ASN1_STRING_FLAG_BITS_LEFT| case.
 int asn1_bit_string_length(const ASN1_BIT_STRING *str,
                            uint8_t *out_padding_bits);
+
+// asn1_parse_bit_string parses a DER-encoded ASN.1 BIT STRING and writes the
+// result to |out|. If |tag| is non-zero, the BIT STRING is implicitly tagged
+// with |tag|.
+int asn1_parse_bit_string(CBS *cbs, ASN1_BIT_STRING *out, CBS_ASN1_TAG tag);
+
+// asn1_parse_bit_string_with_bad_length behaves like |asn1_parse_bit_string|
+// but tolerates BER non-minimal, definite lengths.
+int asn1_parse_bit_string_with_bad_length(CBS *cbs, ASN1_BIT_STRING *out);
 
 // asn1_marshal_bit_string marshals |in| as a DER-encoded, ASN.1 BIT STRING and
 // writes the result to |out|. It returns one on success and zero on error. If

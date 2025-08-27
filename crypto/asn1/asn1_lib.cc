@@ -295,11 +295,21 @@ ASN1_STRING *ASN1_STRING_type_new(int type) {
   return ret;
 }
 
+void asn1_string_init(ASN1_STRING *str, int type) {
+  OPENSSL_memset(str, 0, sizeof(ASN1_STRING));
+  str->type = type;
+}
+
+void asn1_string_cleanup(ASN1_STRING *str) {
+  OPENSSL_free(str->data);
+  str->data = nullptr;
+}
+
 void ASN1_STRING_free(ASN1_STRING *str) {
   if (str == NULL) {
     return;
   }
-  OPENSSL_free(str->data);
+  asn1_string_cleanup(str);
   OPENSSL_free(str);
 }
 

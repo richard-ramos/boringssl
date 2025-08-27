@@ -118,7 +118,7 @@ DECLARE_ASN1_FUNCTIONS(X509_CINF)
 struct x509_st {
   X509_CINF *cert_info;
   X509_ALGOR *sig_alg;
-  ASN1_BIT_STRING *signature;
+  ASN1_BIT_STRING signature;
   CRYPTO_refcount_t references;
   CRYPTO_EX_DATA ex_data;
   // These contain copies of various extension values

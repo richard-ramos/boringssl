@@ -57,6 +57,7 @@ static X509 *x509_new_null(void) {
 
   ret->references = 1;
   ret->ex_pathlen = -1;
+  asn1_string_init(&ret->signature, V_ASN1_BIT_STRING);
   CRYPTO_new_ex_data(&ret->ex_data);
   CRYPTO_MUTEX_init(&ret->lock);
   return ret;
@@ -70,9 +71,7 @@ X509 *X509_new(void) {
 
   ret->cert_info = X509_CINF_new();
   ret->sig_alg = X509_ALGOR_new();
-  ret->signature = ASN1_BIT_STRING_new();
-  if (ret->cert_info == NULL || ret->sig_alg == NULL ||
-      ret->signature == NULL) {
+  if (ret->cert_info == NULL || ret->sig_alg == NULL) {
     X509_free(ret);
     return NULL;
   }
@@ -89,7 +88,7 @@ void X509_free(X509 *x509) {
 
   X509_CINF_free(x509->cert_info);
   X509_ALGOR_free(x509->sig_alg);
-  ASN1_BIT_STRING_free(x509->signature);
+  asn1_string_cleanup(&x509->signature);
   ASN1_OCTET_STRING_free(x509->skid);
   AUTHORITY_KEYID_free(x509->akid);
   CRL_DIST_POINTS_free(x509->crldp);
@@ -102,37 +101,26 @@ void X509_free(X509 *x509) {
 }
 
 static X509 *x509_parse(CBS *cbs, CRYPTO_BUFFER *buf) {
-  CBS cert, tbs, sigalg, sig;
+  bssl::UniquePtr<X509> ret(x509_new_null());
+  if (ret == nullptr) {
+    return nullptr;
+  }
+
+  CBS cert, tbs, sigalg;
   if (!CBS_get_asn1(cbs, &cert, CBS_ASN1_SEQUENCE) ||
       // Bound the length to comfortably fit in an int. Lengths in this
       // module often omit overflow checks.
       CBS_len(&cert) > INT_MAX / 2 ||
       !CBS_get_asn1_element(&cert, &tbs, CBS_ASN1_SEQUENCE) ||
-      !CBS_get_asn1_element(&cert, &sigalg, CBS_ASN1_SEQUENCE)) {
-    OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
-    return nullptr;
-  }
-
-  // For just the signature field, we accept non-minimal BER lengths, though not
-  // indefinite-length encoding. See b/18228011.
-  //
-  // TODO(crbug.com/boringssl/354): Switch the affected callers to convert the
-  // certificate before parsing and then remove this workaround.
-  CBS_ASN1_TAG tag;
-  size_t header_len;
-  int indefinite;
-  if (!CBS_get_any_ber_asn1_element(&cert, &sig, &tag, &header_len,
-                                    /*out_ber_found=*/nullptr,
-                                    &indefinite) ||
-      tag != CBS_ASN1_BITSTRING || indefinite ||  //
-      !CBS_skip(&sig, header_len) ||              //
+      !CBS_get_asn1_element(&cert, &sigalg, CBS_ASN1_SEQUENCE) ||
+      // For just the signature field, we accept non-minimal BER lengths, though
+      // not indefinite-length encoding. See b/18228011.
+      //
+      // TODO(crbug.com/boringssl/354): Switch the affected callers to convert
+      // the certificate before parsing and then remove this workaround.
+      !asn1_parse_bit_string_with_bad_length(&cert, &ret->signature) ||
       CBS_len(&cert) != 0) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
-    return nullptr;
-  }
-
-  bssl::UniquePtr<X509> ret(x509_new_null());
-  if (ret == nullptr) {
     return nullptr;
   }
 
@@ -150,12 +138,6 @@ static X509 *x509_parse(CBS *cbs, CRYPTO_BUFFER *buf) {
   inp = CBS_data(&sigalg);
   ret->sig_alg = d2i_X509_ALGOR(nullptr, &inp, CBS_len(&sigalg));
   if (ret->sig_alg == nullptr || inp != CBS_data(&sigalg) + CBS_len(&sigalg)) {
-    return nullptr;
-  }
-
-  inp = CBS_data(&sig);
-  ret->signature = c2i_ASN1_BIT_STRING(nullptr, &inp, CBS_len(&sig));
-  if (ret->signature == nullptr || inp != CBS_data(&sig) + CBS_len(&sig)) {
     return nullptr;
   }
 
@@ -233,7 +215,7 @@ int i2d_X509(X509 *x509, uint8_t **outp) {
       !CBB_add_space(&cert, &out, static_cast<size_t>(len)) ||
       i2d_X509_CINF(x509->cert_info, &out) != len ||
       !x509_marshal_algorithm(&cert, x509->sig_alg) ||
-      !asn1_marshal_bit_string(&cert, x509->signature, /*tag=*/0)) {
+      !asn1_marshal_bit_string(&cert, &x509->signature, /*tag=*/0)) {
     return -1;
   }
 
@@ -462,18 +444,18 @@ int X509_set1_signature_algo(X509 *x509, const X509_ALGOR *algo) {
 }
 
 int X509_set1_signature_value(X509 *x509, const uint8_t *sig, size_t sig_len) {
-  if (!ASN1_STRING_set(x509->signature, sig, sig_len)) {
+  if (!ASN1_STRING_set(&x509->signature, sig, sig_len)) {
     return 0;
   }
-  x509->signature->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
-  x509->signature->flags |= ASN1_STRING_FLAG_BITS_LEFT;
+  x509->signature.flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
+  x509->signature.flags |= ASN1_STRING_FLAG_BITS_LEFT;
   return 1;
 }
 
 void X509_get0_signature(const ASN1_BIT_STRING **psig, const X509_ALGOR **palg,
                          const X509 *x) {
   if (psig) {
-    *psig = x->signature;
+    *psig = &x->signature;
   }
   if (palg) {
     *palg = x->sig_alg;
