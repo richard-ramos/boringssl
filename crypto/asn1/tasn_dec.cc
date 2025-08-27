@@ -43,8 +43,6 @@ static int asn1_template_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
 static int asn1_template_noexp_d2i(ASN1_VALUE **val, const unsigned char **in,
                                    long len, const ASN1_TEMPLATE *tt, char opt,
                                    CRYPTO_BUFFER *buf, int depth);
-static int asn1_ex_c2i(ASN1_VALUE **pval, const unsigned char *cont, long len,
-                       int utype, const ASN1_ITEM *it);
 static int asn1_d2i_ex_primitive(ASN1_VALUE **pval, const unsigned char **in,
                                  long len, const ASN1_ITEM *it, int tag,
                                  int aclass, char opt);
@@ -90,25 +88,6 @@ unsigned long ASN1_tag2bit(int tag) {
       return 0;
   }
 }
-
-static int is_supported_universal_type(int tag, int aclass) {
-  if (aclass != V_ASN1_UNIVERSAL) {
-    return 0;
-  }
-  return tag == V_ASN1_OBJECT || tag == V_ASN1_NULL || tag == V_ASN1_BOOLEAN ||
-         tag == V_ASN1_BIT_STRING || tag == V_ASN1_INTEGER ||
-         tag == V_ASN1_ENUMERATED || tag == V_ASN1_OCTET_STRING ||
-         tag == V_ASN1_NUMERICSTRING || tag == V_ASN1_PRINTABLESTRING ||
-         tag == V_ASN1_T61STRING || tag == V_ASN1_VIDEOTEXSTRING ||
-         tag == V_ASN1_IA5STRING || tag == V_ASN1_UTCTIME ||
-         tag == V_ASN1_GENERALIZEDTIME || tag == V_ASN1_GRAPHICSTRING ||
-         tag == V_ASN1_VISIBLESTRING || tag == V_ASN1_GENERALSTRING ||
-         tag == V_ASN1_UNIVERSALSTRING || tag == V_ASN1_BMPSTRING ||
-         tag == V_ASN1_UTF8STRING || tag == V_ASN1_SET ||
-         tag == V_ASN1_SEQUENCE;
-}
-
-// Macro to initialize and invalidate the cache
 
 // Decode an ASN1 item, this currently behaves just like a standard 'd2i'
 // function. 'in' points to a buffer to read the data from, in future we
@@ -193,7 +172,6 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
                                     depth);
       }
       return asn1_d2i_ex_primitive(pval, in, len, it, tag, aclass, opt);
-      break;
 
     case ASN1_ITYPE_MSTRING:
       // It never makes sense for multi-strings to have implicit tagging, so
@@ -573,6 +551,7 @@ static int asn1_template_noexp_d2i(ASN1_VALUE **val, const unsigned char **in,
       skfield = NULL;
       if (!asn1_item_ex_d2i(&skfield, &p, len, ASN1_ITEM_ptr(tt->item),
                             /*tag=*/-1, /*aclass=*/0, /*opt=*/0, buf, depth)) {
+        ASN1_item_ex_free(&skfield, ASN1_ITEM_ptr(tt->item));
         OPENSSL_PUT_ERROR(ASN1, ASN1_R_NESTED_ASN1_ERROR);
         goto err;
       }
@@ -612,306 +591,211 @@ err:
   return 0;
 }
 
+// TODO(crbug.com/42290418): Switch the whole file to use a CBS-based calling
+// convention.
+static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
+                                     const ASN1_ITEM *it, int tag, int aclass,
+                                     char opt);
+
+// asn1_d2i_ex_primitive returns one on success, zero on error, and -1 if an
+// optional value was skipped.
 static int asn1_d2i_ex_primitive(ASN1_VALUE **pval, const unsigned char **in,
                                  long inlen, const ASN1_ITEM *it, int tag,
                                  int aclass, char opt) {
-  int ret = 0, utype;
-  long plen;
-  char cst;
-  const unsigned char *p;
-  const unsigned char *cont = NULL;
-  long len;
-  if (!pval) {
-    OPENSSL_PUT_ERROR(ASN1, ASN1_R_ILLEGAL_NULL);
-    return 0;  // Should never happen
+  CBS cbs;
+  CBS_init(&cbs, *in, inlen);
+  int ret = asn1_d2i_ex_primitive_cbs(pval, &cbs, it, tag, aclass, opt);
+  if (ret <= 0) {
+    return ret;
   }
+  *in = CBS_data(&cbs);
+  return 1;
+}
 
+static ASN1_STRING *ensure_string(ASN1_VALUE **pval) {
+  if (*pval) {
+    return (ASN1_STRING *)*pval;
+  }
+  ASN1_STRING *str = ASN1_STRING_new();
+  if (str == nullptr) {
+    return nullptr;
+  }
+  *pval = (ASN1_VALUE *)str;
+  return str;
+}
+
+static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
+                                     const ASN1_ITEM *it, int tag, int aclass,
+                                     char opt) {
+  // Historically, |it->funcs| for primitive types contained an
+  // |ASN1_PRIMITIVE_FUNCS| table of callbacks.
+  assert(it->funcs == NULL);
+
+  int utype;
   assert(it->itype == ASN1_ITYPE_PRIMITIVE || it->itype == ASN1_ITYPE_MSTRING);
   if (it->itype == ASN1_ITYPE_MSTRING) {
+    // MSTRING passes utype in |tag|, normally used for implicit tagging.
     utype = tag;
     tag = -1;
   } else {
     utype = it->utype;
   }
 
+  // Handle ANY types.
   if (utype == V_ASN1_ANY || utype == V_ASN1_ANY_AS_STRING) {
-    // If type is ANY need to figure out type from tag
-    unsigned char oclass;
     if (tag >= 0) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_ILLEGAL_TAGGED_ANY);
       return 0;
     }
-    if (opt) {
-      OPENSSL_PUT_ERROR(ASN1, ASN1_R_ILLEGAL_OPTIONAL_ANY);
-      return 0;
-    }
-    const int is_string = utype == V_ASN1_ANY_AS_STRING;
-    p = *in;
-    ret = asn1_check_tlen(&plen, &utype, &oclass, &cst, &p, inlen, -1, 0, 0);
-    if (!ret) {
-      OPENSSL_PUT_ERROR(ASN1, ASN1_R_NESTED_ASN1_ERROR);
-      return 0;
-    }
-    if (!is_supported_universal_type(utype, oclass)) {
-      utype = V_ASN1_OTHER;
-    }
-    // These three types are not represented as |ASN1_STRING|, so they must be
-    // parsed separately and then treated as an opaque |V_ASN1_OTHER|.
-    if (is_string && (utype == V_ASN1_OBJECT || utype == V_ASN1_NULL ||
-                      utype == V_ASN1_BOOLEAN)) {
-      if (cst) {
-        OPENSSL_PUT_ERROR(ASN1, ASN1_R_TYPE_NOT_PRIMITIVE);
-        return 0;
-      }
-      CBS cbs;
-      CBS_init(&cbs, p, plen);
-      if (utype == V_ASN1_OBJECT && !CBS_is_valid_asn1_oid(&cbs)) {
-        OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_OBJECT_ENCODING);
-        return 0;
-      }
-      if (utype == V_ASN1_NULL && CBS_len(&cbs) != 0) {
-        OPENSSL_PUT_ERROR(ASN1, ASN1_R_NULL_IS_WRONG_LENGTH);
-        return 0;
-      }
-      if (utype == V_ASN1_BOOLEAN) {
-        if (CBS_len(&cbs) != 1) {
-          OPENSSL_PUT_ERROR(ASN1, ASN1_R_BOOLEAN_IS_WRONG_LENGTH);
-          return 0;
-        }
-        uint8_t v = CBS_data(&cbs)[0];
-        if (v != 0 && v != 0xff) {
-          OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
-          return 0;
-        }
-      }
-      utype = V_ASN1_OTHER;
+    if (opt && CBS_len(cbs) == 0) {
+      return -1;  // Omitted OPTIONAL value.
     }
   }
-  if (tag == -1) {
-    tag = utype;
-    aclass = V_ASN1_UNIVERSAL;
-  }
-  p = *in;
-  // Check header
-  ret = asn1_check_tlen(&plen, NULL, NULL, &cst, &p, inlen, tag, aclass, opt);
-  if (!ret) {
-    OPENSSL_PUT_ERROR(ASN1, ASN1_R_NESTED_ASN1_ERROR);
-    return 0;
-  } else if (ret == -1) {
-    return -1;
-  }
-  ret = 0;
-  // SEQUENCE, SET and "OTHER" are left in encoded form
-  if ((utype == V_ASN1_SEQUENCE) || (utype == V_ASN1_SET) ||
-      (utype == V_ASN1_OTHER)) {
-    // SEQUENCE and SET must be constructed
-    if (utype != V_ASN1_OTHER && !cst) {
-      OPENSSL_PUT_ERROR(ASN1, ASN1_R_TYPE_NOT_CONSTRUCTED);
-      return 0;
-    }
-
-    cont = *in;
-    len = p - cont + plen;
-    p += plen;
-  } else if (cst) {
-    // This parser historically supported BER constructed strings. We no
-    // longer do and will gradually tighten this parser into a DER
-    // parser. BER types should use |CBS_asn1_ber_to_der|.
-    OPENSSL_PUT_ERROR(ASN1, ASN1_R_TYPE_NOT_PRIMITIVE);
-    return 0;
-  } else {
-    cont = p;
-    len = plen;
-    p += plen;
-  }
-
-  // We now have content length and type: translate into a structure
-  if (!asn1_ex_c2i(pval, cont, len, utype, it)) {
-    goto err;
-  }
-
-  *in = p;
-  ret = 1;
-err:
-  return ret;
-}
-
-// Translate ASN1 content octets into a structure
-
-static int asn1_ex_c2i(ASN1_VALUE **pval, const unsigned char *cont, long len,
-                       int utype, const ASN1_ITEM *it) {
-  ASN1_VALUE **opval = NULL;
-  ASN1_STRING *stmp;
-  ASN1_TYPE *typ = NULL;
-  int ret = 0;
-  ASN1_INTEGER **tint;
-
-  // Historically, |it->funcs| for primitive types contained an
-  // |ASN1_PRIMITIVE_FUNCS| table of callbacks.
-  assert(it->funcs == NULL);
-
-  // If ANY type clear type and set pointer to internal value
-  if (it->utype == V_ASN1_ANY) {
+  if (utype == V_ASN1_ANY) {
+    ASN1_TYPE *typ;
     if (!*pval) {
       typ = ASN1_TYPE_new();
       if (typ == NULL) {
-        goto err;
+        return 0;
       }
       *pval = (ASN1_VALUE *)typ;
     } else {
       typ = (ASN1_TYPE *)*pval;
     }
-
-    if (utype != typ->type) {
-      ASN1_TYPE_set(typ, utype, NULL);
+    return asn1_parse_any(cbs, typ);
+  }
+  if (utype == V_ASN1_ANY_AS_STRING) {
+    ASN1_STRING *str = ensure_string(pval);
+    if (str == nullptr) {
+      return 0;
     }
-    opval = pval;
-    pval = &typ->value.asn1_value;
+    return asn1_parse_any_as_string(cbs, str);
   }
 
-  // If implementing a type that is not represented in |ASN1_STRING|, the
-  // |V_ASN1_ANY_AS_STRING| logic must be modified to redirect it to
-  // |V_ASN1_OTHER|.
-  switch (utype) {
-    case V_ASN1_OBJECT:
-      if (!c2i_ASN1_OBJECT((ASN1_OBJECT **)pval, &cont, len)) {
-        goto err;
-      }
-      break;
+  // Convert the crypto/asn1 tag into a CBS one.
+  if (tag == -1) {
+    tag = utype;
+    aclass = V_ASN1_UNIVERSAL;
+  }
 
-    case V_ASN1_NULL:
-      if (len) {
+  // All edge cases of |utype| should have been handled already. |utype| is now
+  // either a primitive |ASN1_ITEM|, handled by |DECLARE_ASN1_ITEM|, or a
+  // multistring option with a corresponding |B_ASN1_*| constant.
+  assert(utype >= 0 && utype <= V_ASN1_MAX_UNIVERSAL);
+  CBS_ASN1_TAG cbs_tag =
+      (static_cast<CBS_ASN1_TAG>(aclass) << CBS_ASN1_TAG_SHIFT) |
+      static_cast<CBS_ASN1_TAG>(tag);
+  if (utype == V_ASN1_SEQUENCE || utype == V_ASN1_SET) {
+    cbs_tag |= CBS_ASN1_CONSTRUCTED;
+  }
+
+  if (opt && !CBS_peek_asn1_tag(cbs, cbs_tag)) {
+    return -1;  // Omitted OPTIONAL value.
+  }
+
+  // Handle non-|ASN1_STRING| types.
+  switch (utype) {
+    case V_ASN1_OBJECT: {
+      bssl::UniquePtr<ASN1_OBJECT> obj(asn1_parse_object(cbs, cbs_tag));
+      if (obj == nullptr) {
+        return 0;
+      }
+      ASN1_OBJECT_free((ASN1_OBJECT *)*pval);
+      *pval = (ASN1_VALUE *)obj.release();
+      return 1;
+    }
+    case V_ASN1_NULL: {
+      CBS null;
+      if (!CBS_get_asn1(cbs, &null, cbs_tag)) {
+        OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
+        return 0;
+      }
+      if (CBS_len(&null) != 0) {
         OPENSSL_PUT_ERROR(ASN1, ASN1_R_NULL_IS_WRONG_LENGTH);
-        goto err;
+        return 0;
       }
       *pval = (ASN1_VALUE *)1;
-      break;
-
-    case V_ASN1_BOOLEAN:
-      if (len != 1) {
+      return 1;
+    }
+    case V_ASN1_BOOLEAN: {
+      CBS child;
+      if (!CBS_get_asn1(cbs, &child, cbs_tag)) {
+        OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
+        return 0;
+      }
+      // TODO(crbug.com/42290221): Reject invalid BOOLEAN encodings and just
+      // call |CBS_get_asn1_bool|.
+      if (CBS_len(&child) != 1) {
         OPENSSL_PUT_ERROR(ASN1, ASN1_R_BOOLEAN_IS_WRONG_LENGTH);
-        goto err;
-      } else {
-        ASN1_BOOLEAN *tbool;
-        tbool = (ASN1_BOOLEAN *)pval;
-        *tbool = *cont;
+        return 0;
       }
-      break;
+      ASN1_BOOLEAN *tbool;
+      tbool = (ASN1_BOOLEAN *)pval;
+      *tbool = CBS_data(&child)[0];
+      return 1;
+    }
+  }
 
+  // All other types as an |ASN1_STRING| representation.
+  ASN1_STRING *str = ensure_string(pval);
+  if (str == nullptr) {
+    return 0;
+  }
+
+  switch (utype) {
     case V_ASN1_BIT_STRING:
-      if (!c2i_ASN1_BIT_STRING((ASN1_BIT_STRING **)pval, &cont, len)) {
-        goto err;
-      }
-      break;
-
+      return asn1_parse_bit_string(cbs, str, cbs_tag);
     case V_ASN1_INTEGER:
+      return asn1_parse_integer(cbs, str, cbs_tag);
     case V_ASN1_ENUMERATED:
-      tint = (ASN1_INTEGER **)pval;
-      if (!c2i_ASN1_INTEGER(tint, &cont, len)) {
-        goto err;
-      }
-      // Fixup type to match the expected form
-      (*tint)->type = utype | ((*tint)->type & V_ASN1_NEG);
-      break;
-
+      return asn1_parse_enumerated(cbs, str, cbs_tag);
+    case V_ASN1_UNIVERSALSTRING:
+      return asn1_parse_universal_string(cbs, str, cbs_tag);
+    case V_ASN1_BMPSTRING:
+      return asn1_parse_bmp_string(cbs, str, cbs_tag);
+    case V_ASN1_UTF8STRING:
+      return asn1_parse_utf8_string(cbs, str, cbs_tag);
+    case V_ASN1_UTCTIME:
+      // TODO(crbug.com/42290417): Once |X509|'s parser is written by hand, we
+      // won't have any known compatibility constraints forcing an invalid
+      // parser here. At that point, we can make the general case strict.
+      return asn1_parse_utc_time(cbs, str, cbs_tag,
+                                 /*allow_timezone_offset=*/1);
+    case V_ASN1_GENERALIZEDTIME:
+      return asn1_parse_generalized_time(cbs, str, cbs_tag);
     case V_ASN1_OCTET_STRING:
     case V_ASN1_NUMERICSTRING:
     case V_ASN1_PRINTABLESTRING:
     case V_ASN1_T61STRING:
     case V_ASN1_VIDEOTEXSTRING:
     case V_ASN1_IA5STRING:
-    case V_ASN1_UTCTIME:
-    case V_ASN1_GENERALIZEDTIME:
     case V_ASN1_GRAPHICSTRING:
     case V_ASN1_VISIBLESTRING:
     case V_ASN1_GENERALSTRING:
-    case V_ASN1_UNIVERSALSTRING:
-    case V_ASN1_BMPSTRING:
-    case V_ASN1_UTF8STRING:
-    case V_ASN1_OTHER:
-    case V_ASN1_SET:
+      // T61String is parsed as Latin-1, so all byte strings are valid. The
+      // others we currently do not enforce.
+      //
+      // TODO(crbug.com/42290290): Enforce the encoding of the other string
+      // types.
+      if (!asn1_parse_octet_string(cbs, str, cbs_tag)) {
+        return 0;
+      }
+      str->type = utype;
+      return 1;
     case V_ASN1_SEQUENCE: {
-      CBS cbs;
-      CBS_init(&cbs, cont, (size_t)len);
-      if (utype == V_ASN1_BMPSTRING) {
-        while (CBS_len(&cbs) != 0) {
-          uint32_t c;
-          if (!CBS_get_ucs2_be(&cbs, &c)) {
-            OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_BMPSTRING);
-            goto err;
-          }
-        }
+      // Save the entire element in the string.
+      CBS elem;
+      if (!CBS_get_asn1_element(cbs, &elem, cbs_tag)) {
+        OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
+        return 0;
       }
-      if (utype == V_ASN1_UNIVERSALSTRING) {
-        while (CBS_len(&cbs) != 0) {
-          uint32_t c;
-          if (!CBS_get_utf32_be(&cbs, &c)) {
-            OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_UNIVERSALSTRING);
-            goto err;
-          }
-        }
-      }
-      if (utype == V_ASN1_UTF8STRING) {
-        while (CBS_len(&cbs) != 0) {
-          uint32_t c;
-          if (!CBS_get_utf8(&cbs, &c)) {
-            OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_UTF8STRING);
-            goto err;
-          }
-        }
-      }
-      if (utype == V_ASN1_UTCTIME) {
-        if (!CBS_parse_utc_time(&cbs, NULL, /*allow_timezone_offset=*/1)) {
-          OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_TIME_FORMAT);
-          goto err;
-        }
-      }
-      if (utype == V_ASN1_GENERALIZEDTIME) {
-        if (!CBS_parse_generalized_time(&cbs, NULL,
-                                        /*allow_timezone_offset=*/0)) {
-          OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_TIME_FORMAT);
-          goto err;
-        }
-      }
-      // TODO(https://crbug.com/boringssl/427): Check other string types.
-
-      // All based on ASN1_STRING and handled the same
-      if (!*pval) {
-        stmp = ASN1_STRING_type_new(utype);
-        if (!stmp) {
-          goto err;
-        }
-        *pval = (ASN1_VALUE *)stmp;
-      } else {
-        stmp = (ASN1_STRING *)*pval;
-        stmp->type = utype;
-      }
-      if (!ASN1_STRING_set(stmp, cont, len)) {
-        ASN1_STRING_free(stmp);
-        *pval = NULL;
-        goto err;
-      }
-      break;
+      str->type = V_ASN1_SEQUENCE;
+      return ASN1_STRING_set(str, CBS_data(&elem), CBS_len(&elem));
     }
-
     default:
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_BAD_TEMPLATE);
-      goto err;
-  }
-  // If ASN1_ANY and NULL type fix up value
-  if (typ && (utype == V_ASN1_NULL)) {
-    typ->value.ptr = NULL;
-  }
-
-  ret = 1;
-err:
-  if (!ret) {
-    ASN1_TYPE_free(typ);
-    if (opval) {
-      *opval = NULL;
+      return 0;
     }
-  }
-  return ret;
 }
 
 // Check an ASN1 tag and length: a bit like ASN1_get_object but it

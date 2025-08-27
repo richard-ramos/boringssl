@@ -27,26 +27,29 @@
 #include "internal.h"
 
 
-int i2d_ASN1_OBJECT(const ASN1_OBJECT *in, unsigned char **outp) {
+int asn1_marshal_object(CBB *out, const ASN1_OBJECT *in, CBS_ASN1_TAG tag) {
   if (in == NULL) {
     OPENSSL_PUT_ERROR(ASN1, ERR_R_PASSED_NULL_PARAMETER);
-    return -1;
+    return 0;
   }
 
   if (in->length <= 0) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_ILLEGAL_OBJECT);
+    return 0;
+  }
+
+  tag = tag == 0 ? CBS_ASN1_OBJECT : tag;
+  return CBB_add_asn1_element(out, tag, in->data, in->length);
+}
+
+int i2d_ASN1_OBJECT(const ASN1_OBJECT *in, unsigned char **outp) {
+  bssl::ScopedCBB cbb;
+  if (!CBB_init(cbb.get(), static_cast<size_t>(in->length) + 2) ||
+      !asn1_marshal_object(cbb.get(), in, /*tag=*/0)) {
     return -1;
   }
 
-  CBB cbb, child;
-  if (!CBB_init(&cbb, (size_t)in->length + 2) ||
-      !CBB_add_asn1(&cbb, &child, CBS_ASN1_OBJECT) ||
-      !CBB_add_bytes(&child, in->data, in->length)) {
-    CBB_cleanup(&cbb);
-    return -1;
-  }
-
-  return CBB_finish_i2d(&cbb, outp);
+  return CBB_finish_i2d(cbb.get(), outp);
 }
 
 int i2t_ASN1_OBJECT(char *buf, int buf_len, const ASN1_OBJECT *a) {
@@ -137,6 +140,21 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **out, const unsigned char **inp,
   }
   *inp += len;  // All bytes were consumed.
   return ret;
+}
+
+ASN1_OBJECT *asn1_parse_object(CBS *cbs, CBS_ASN1_TAG tag) {
+  tag = tag == 0 ? CBS_ASN1_OBJECT : tag;
+  CBS child;
+  if (!CBS_get_asn1(cbs, &child, tag)) {
+    OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
+    return nullptr;
+  }
+  if (!CBS_is_valid_asn1_oid(&child)) {
+    OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_OBJECT_ENCODING);
+    return nullptr;
+  }
+  return ASN1_OBJECT_create(NID_undef, CBS_data(&child), CBS_len(&child),
+                            /*sn=*/nullptr, /*ln=*/nullptr);
 }
 
 ASN1_OBJECT *ASN1_OBJECT_new(void) {
