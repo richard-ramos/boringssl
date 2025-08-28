@@ -7223,14 +7223,17 @@ TEST(X509Test, NameAttributeValues) {
       // These types are not actually supported by the library, but we accept
       // them as |V_ASN1_OTHER|.
       {7 /* ObjectDescriptor */, "", V_ASN1_OTHER, std::string("\x07\x00", 2)},
-      {8 /* EXTERNAL */, "", V_ASN1_OTHER, std::string("\x08\x00", 2)},
+      {CBS_ASN1_CONSTRUCTED | 8 /* EXTERNAL */, "", V_ASN1_OTHER,
+       std::string("\x28\x00", 2)},
       {9 /* REAL */, "", V_ASN1_OTHER, std::string("\x09\x00", 2)},
-      {11 /* EMBEDDED PDV */, "", V_ASN1_OTHER, std::string("\x0b\x00", 2)},
-      {13 /* RELATIVE-OID */, "", V_ASN1_OTHER, std::string("\x0d\x00", 2)},
+      {CBS_ASN1_CONSTRUCTED | 11 /* EMBEDDED PDV */, "", V_ASN1_OTHER,
+       std::string("\x2b\x00", 2)},
+      {13 /* RELATIVE-OID */, "\x01", V_ASN1_OTHER, "\x0d\x01\x01"},
       {14 /* TIME */, "", V_ASN1_OTHER, std::string("\x0e\x00", 2)},
       {15 /* not a type; reserved value */, "", V_ASN1_OTHER,
        std::string("\x0f\x00", 2)},
-      {29 /* CHARACTER STRING */, "", V_ASN1_OTHER, std::string("\x1d\x00", 2)},
+      {CBS_ASN1_CONSTRUCTED | 29 /* CHARACTER STRING */, "", V_ASN1_OTHER,
+       std::string("\x3d\x00", 2)},
 
       // Non-universal tags are allowed as |V_ASN1_OTHER| too.
       {CBS_ASN1_APPLICATION | CBS_ASN1_CONSTRUCTED | 42, "", V_ASN1_OTHER,
