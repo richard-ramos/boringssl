@@ -29,7 +29,35 @@ ASN1_SEQUENCE(X509_ALGOR) = {
 } ASN1_SEQUENCE_END(X509_ALGOR)
 
 IMPLEMENT_ASN1_FUNCTIONS_const(X509_ALGOR)
-IMPLEMENT_ASN1_DUP_FUNCTION_const(X509_ALGOR)
+
+X509_ALGOR *X509_ALGOR_dup(const X509_ALGOR *alg) {
+  bssl::UniquePtr<X509_ALGOR> copy(X509_ALGOR_new());
+  if (copy == nullptr || !X509_ALGOR_copy(copy.get(), alg)) {
+    return nullptr;
+  }
+  return copy.release();
+}
+
+int X509_ALGOR_copy(X509_ALGOR *dst, const X509_ALGOR *src) {
+  bssl::UniquePtr<ASN1_OBJECT> algorithm(OBJ_dup(src->algorithm));
+  if (algorithm == nullptr) {
+    return 0;
+  }
+  bssl::UniquePtr<ASN1_TYPE> parameter;
+  if (src->parameter != nullptr) {
+    parameter.reset(ASN1_TYPE_new());
+    if (parameter == nullptr ||
+        !ASN1_TYPE_set1(parameter.get(), src->parameter->type,
+                        asn1_type_value_as_pointer(src->parameter))) {
+      return 0;
+    }
+  }
+  ASN1_OBJECT_free(dst->algorithm);
+  dst->algorithm = algorithm.release();
+  ASN1_TYPE_free(dst->parameter);
+  dst->parameter = parameter.release();
+  return 1;
+}
 
 int X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval) {
   if (!alg) {

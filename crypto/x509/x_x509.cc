@@ -411,19 +411,8 @@ int i2d_X509_tbs(X509 *x509, unsigned char **outp) {
 }
 
 int X509_set1_signature_algo(X509 *x509, const X509_ALGOR *algo) {
-  X509_ALGOR *copy1 = X509_ALGOR_dup(algo);
-  X509_ALGOR *copy2 = X509_ALGOR_dup(algo);
-  if (copy1 == NULL || copy2 == NULL) {
-    X509_ALGOR_free(copy1);
-    X509_ALGOR_free(copy2);
-    return 0;
-  }
-
-  X509_ALGOR_free(x509->sig_alg);
-  x509->sig_alg = copy1;
-  X509_ALGOR_free(x509->cert_info->signature);
-  x509->cert_info->signature = copy2;
-  return 1;
+  return X509_ALGOR_copy(x509->sig_alg, algo) &&
+         X509_ALGOR_copy(x509->cert_info->signature, algo);
 }
 
 int X509_set1_signature_value(X509 *x509, const uint8_t *sig, size_t sig_len) {

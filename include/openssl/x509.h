@@ -2587,6 +2587,10 @@ OPENSSL_EXPORT X509_ALGOR *X509_ALGOR_new(void);
 // it may fail.
 OPENSSL_EXPORT X509_ALGOR *X509_ALGOR_dup(const X509_ALGOR *alg);
 
+// X509_ALGOR_copy sets |dst| to a copy of the contents of |src|. It returns one
+// on success and zero on error.
+OPENSSL_EXPORT int X509_ALGOR_copy(X509_ALGOR *dst, const X509_ALGOR *src);
+
 // X509_ALGOR_free releases memory associated with |alg|.
 OPENSSL_EXPORT void X509_ALGOR_free(X509_ALGOR *alg);
 
