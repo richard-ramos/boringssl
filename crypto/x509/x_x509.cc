@@ -171,27 +171,8 @@ static X509 *x509_parse(CBS *cbs, CRYPTO_BUFFER *buf) {
 }
 
 X509 *d2i_X509(X509 **out, const uint8_t **inp, long len) {
-  X509 *ret = NULL;
-  if (len < 0) {
-    OPENSSL_PUT_ERROR(ASN1, ASN1_R_BUFFER_TOO_SMALL);
-    goto err;
-  }
-
-  CBS cbs;
-  CBS_init(&cbs, *inp, (size_t)len);
-  ret = x509_parse(&cbs, NULL);
-  if (ret == NULL) {
-    goto err;
-  }
-
-  *inp = CBS_data(&cbs);
-
-err:
-  if (out != NULL) {
-    X509_free(*out);
-    *out = ret;
-  }
-  return ret;
+  return bssl::D2IFromCBS(out, inp, len,
+                          [](CBS *cbs) { return x509_parse(cbs, nullptr); });
 }
 
 int i2d_X509(X509 *x509, uint8_t **outp) {
@@ -200,26 +181,28 @@ int i2d_X509(X509 *x509, uint8_t **outp) {
     return -1;
   }
 
-  bssl::ScopedCBB cbb;
-  CBB cert;
-  if (!CBB_init(cbb.get(), 64) ||  //
-      !CBB_add_asn1(cbb.get(), &cert, CBS_ASN1_SEQUENCE)) {
-    return -1;
-  }
+  return bssl::I2DFromCBB(
+      /*initial_capacity=*/64, outp, [&](CBB *cbb) -> bool {
+        CBB cert;
+        if (!CBB_add_asn1(cbb, &cert, CBS_ASN1_SEQUENCE)) {
+          return false;
+        }
 
-  // TODO(crbug.com/boringssl/443): When the rest of the library is decoupled
-  // from the tasn_*.c implementation, replace this with |CBS|-based functions.
-  uint8_t *out;
-  int len = i2d_X509_CINF(x509->cert_info, NULL);
-  if (len < 0 ||  //
-      !CBB_add_space(&cert, &out, static_cast<size_t>(len)) ||
-      i2d_X509_CINF(x509->cert_info, &out) != len ||
-      !x509_marshal_algorithm(&cert, x509->sig_alg) ||
-      !asn1_marshal_bit_string(&cert, &x509->signature, /*tag=*/0)) {
-    return -1;
-  }
-
-  return CBB_finish_i2d(cbb.get(), outp);
+        // TODO(crbug.com/boringssl/443): When the rest of the library is
+        // decoupled from the tasn_*.c implementation, replace this with
+        // |CBB|-based functions.
+        uint8_t *out;
+        int len = i2d_X509_CINF(x509->cert_info, NULL);
+        if (len < 0 ||  //
+            !CBB_add_space(&cert, &out, static_cast<size_t>(len)) ||
+            i2d_X509_CINF(x509->cert_info, &out) != len ||
+            !x509_marshal_algorithm(&cert, x509->sig_alg) ||
+            !asn1_marshal_bit_string(&cert, &x509->signature, /*tag=*/0) ||
+            !CBB_flush(cbb)) {
+          return false;
+        }
+        return true;
+      });
 }
 
 static int x509_new_cb(ASN1_VALUE **pval, const ASN1_ITEM *it) {
