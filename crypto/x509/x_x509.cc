@@ -57,6 +57,7 @@ static X509 *x509_new_null(void) {
 
   ret->references = 1;
   ret->ex_pathlen = -1;
+  x509_algor_init(&ret->sig_alg);
   asn1_string_init(&ret->signature, V_ASN1_BIT_STRING);
   CRYPTO_new_ex_data(&ret->ex_data);
   CRYPTO_MUTEX_init(&ret->lock);
@@ -70,8 +71,7 @@ X509 *X509_new(void) {
   }
 
   ret->cert_info = X509_CINF_new();
-  ret->sig_alg = X509_ALGOR_new();
-  if (ret->cert_info == NULL || ret->sig_alg == NULL) {
+  if (ret->cert_info == NULL) {
     X509_free(ret);
     return NULL;
   }
@@ -87,7 +87,7 @@ void X509_free(X509 *x509) {
   CRYPTO_free_ex_data(&g_ex_data_class, &x509->ex_data);
 
   X509_CINF_free(x509->cert_info);
-  X509_ALGOR_free(x509->sig_alg);
+  x509_algor_cleanup(&x509->sig_alg);
   asn1_string_cleanup(&x509->signature);
   ASN1_OCTET_STRING_free(x509->skid);
   AUTHORITY_KEYID_free(x509->akid);
@@ -106,13 +106,13 @@ static X509 *x509_parse(CBS *cbs, CRYPTO_BUFFER *buf) {
     return nullptr;
   }
 
-  CBS cert, tbs, sigalg;
+  CBS cert, tbs;
   if (!CBS_get_asn1(cbs, &cert, CBS_ASN1_SEQUENCE) ||
       // Bound the length to comfortably fit in an int. Lengths in this
       // module often omit overflow checks.
       CBS_len(&cert) > INT_MAX / 2 ||
       !CBS_get_asn1_element(&cert, &tbs, CBS_ASN1_SEQUENCE) ||
-      !CBS_get_asn1_element(&cert, &sigalg, CBS_ASN1_SEQUENCE) ||
+      !x509_parse_algorithm(&cert, &ret->sig_alg) ||
       // For just the signature field, we accept non-minimal BER lengths, though
       // not indefinite-length encoding. See b/18228011.
       //
@@ -132,12 +132,6 @@ static X509 *x509_parse(CBS *cbs, CRYPTO_BUFFER *buf) {
                        ASN1_ITEM_rptr(X509_CINF), /*tag=*/-1,
                        /*aclass=*/0, /*opt=*/0, buf) <= 0 ||
       inp != CBS_data(&tbs) + CBS_len(&tbs)) {
-    return nullptr;
-  }
-
-  inp = CBS_data(&sigalg);
-  ret->sig_alg = d2i_X509_ALGOR(nullptr, &inp, CBS_len(&sigalg));
-  if (ret->sig_alg == nullptr || inp != CBS_data(&sigalg) + CBS_len(&sigalg)) {
     return nullptr;
   }
 
@@ -196,7 +190,7 @@ int i2d_X509(X509 *x509, uint8_t **outp) {
         if (len < 0 ||  //
             !CBB_add_space(&cert, &out, static_cast<size_t>(len)) ||
             i2d_X509_CINF(x509->cert_info, &out) != len ||
-            !x509_marshal_algorithm(&cert, x509->sig_alg) ||
+            !x509_marshal_algorithm(&cert, &x509->sig_alg) ||
             !asn1_marshal_bit_string(&cert, &x509->signature, /*tag=*/0) ||
             !CBB_flush(cbb)) {
           return false;
@@ -398,7 +392,7 @@ int i2d_X509_tbs(X509 *x509, unsigned char **outp) {
 }
 
 int X509_set1_signature_algo(X509 *x509, const X509_ALGOR *algo) {
-  return X509_ALGOR_copy(x509->sig_alg, algo) &&
+  return X509_ALGOR_copy(&x509->sig_alg, algo) &&
          X509_ALGOR_copy(x509->cert_info->signature, algo);
 }
 
@@ -417,10 +411,10 @@ void X509_get0_signature(const ASN1_BIT_STRING **psig, const X509_ALGOR **palg,
     *psig = &x->signature;
   }
   if (palg) {
-    *palg = x->sig_alg;
+    *palg = &x->sig_alg;
   }
 }
 
 int X509_get_signature_nid(const X509 *x) {
-  return OBJ_obj2nid(x->sig_alg->algorithm);
+  return OBJ_obj2nid(x->sig_alg.algorithm);
 }
