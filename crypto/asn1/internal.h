@@ -316,6 +316,41 @@ typedef struct ASN1_EXTERN_FUNCS_st {
   ASN1_ex_i2d *asn1_ex_i2d;
 } ASN1_EXTERN_FUNCS;
 
+#define IMPLEMENT_EXTERN_ASN1_SIMPLE(name, new_func, free_func, parse_func,    \
+                                     i2d_func)                                 \
+  static int name##_new_cb(ASN1_VALUE **pval, const ASN1_ITEM *it) {           \
+    *pval = (ASN1_VALUE *)new_func();                                          \
+    return *pval != nullptr;                                                   \
+  }                                                                            \
+                                                                               \
+  static void name##_free_cb(ASN1_VALUE **pval, const ASN1_ITEM *it) {         \
+    free_func((name *)*pval);                                                  \
+    *pval = nullptr;                                                           \
+  }                                                                            \
+                                                                               \
+  static int name##_parse_cb(ASN1_VALUE **pval, CBS *cbs, const ASN1_ITEM *it, \
+                             int opt) {                                        \
+    if (opt && !CBS_peek_asn1_tag(cbs, CBS_ASN1_SEQUENCE)) {                   \
+      return 1;                                                                \
+    }                                                                          \
+                                                                               \
+    if ((*pval == nullptr && !name##_new_cb(pval, it)) ||                      \
+        !parse_func(cbs, (name *)*pval)) {                                     \
+      return 0;                                                                \
+    }                                                                          \
+    return 1;                                                                  \
+  }                                                                            \
+                                                                               \
+  static int name##_i2d_cb(ASN1_VALUE **pval, unsigned char **out,             \
+                           const ASN1_ITEM *it) {                              \
+    return i2d_func((name *)*pval, out);                                       \
+  }                                                                            \
+                                                                               \
+  static const ASN1_EXTERN_FUNCS name##_extern_funcs = {                       \
+      name##_new_cb, name##_free_cb, name##_parse_cb, name##_i2d_cb};          \
+                                                                               \
+  IMPLEMENT_EXTERN_ASN1(name, name##_extern_funcs)
+
 // ASN1_TIME is an |ASN1_ITEM| whose ASN.1 type is X.509 Time (RFC 5280) and C
 // type is |ASN1_TIME*|.
 DECLARE_ASN1_ITEM(ASN1_TIME)

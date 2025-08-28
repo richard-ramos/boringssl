@@ -555,6 +555,13 @@ int DIST_POINT_set_dpname(DIST_POINT_NAME *dpn, X509_NAME *iname);
 // mutated.
 int x509_marshal_name(CBB *out, X509_NAME *in);
 
+void x509_algor_init(X509_ALGOR *alg);
+void x509_algor_cleanup(X509_ALGOR *alg);
+
+// x509_parse_algorithm parses a DER-encoded, AlgorithmIdentifier from |cbs| and
+// writes the result to |*out|. It returns one on success and zero on error.
+int x509_parse_algorithm(CBS *cbs, X509_ALGOR *out);
+
 // x509_marshal_algorithm marshals |in| as a DER-encoded, AlgorithmIdentifier
 // and writes the result to |out|. It returns one on success and zero on error.
 int x509_marshal_algorithm(CBB *out, const X509_ALGOR *in);
