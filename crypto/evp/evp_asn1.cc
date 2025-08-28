@@ -390,13 +390,28 @@ int i2d_PUBKEY(const EVP_PKEY *pkey, uint8_t **outp) {
   return CBB_finish_i2d(&cbb, outp);
 }
 
+static bssl::UniquePtr<EVP_PKEY> parse_spki(
+    CBS *cbs, bssl::Span<const EVP_PKEY_ALG *const> algs) {
+  CBS spki;
+  if (!CBS_get_asn1_element(cbs, &spki, CBS_ASN1_SEQUENCE)) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return nullptr;
+  }
+  return bssl::UniquePtr<EVP_PKEY>(EVP_PKEY_from_subject_public_key_info(
+      CBS_data(&spki), CBS_len(&spki), algs.data(), algs.size()));
+}
+
+static bssl::UniquePtr<EVP_PKEY> parse_spki(CBS *cbs, const EVP_PKEY_ALG *alg) {
+  return parse_spki(cbs, bssl::Span(&alg, 1));
+}
+
 RSA *d2i_RSA_PUBKEY(RSA **out, const uint8_t **inp, long len) {
   if (len < 0) {
     return nullptr;
   }
   CBS cbs;
   CBS_init(&cbs, *inp, (size_t)len);
-  bssl::UniquePtr<EVP_PKEY> pkey(EVP_parse_public_key(&cbs));
+  bssl::UniquePtr<EVP_PKEY> pkey = parse_spki(&cbs, EVP_pkey_rsa());
   if (pkey == nullptr) {
     return nullptr;
   }
@@ -432,7 +447,7 @@ DSA *d2i_DSA_PUBKEY(DSA **out, const uint8_t **inp, long len) {
   }
   CBS cbs;
   CBS_init(&cbs, *inp, (size_t)len);
-  bssl::UniquePtr<EVP_PKEY> pkey(EVP_parse_public_key(&cbs));
+  bssl::UniquePtr<EVP_PKEY> pkey = parse_spki(&cbs, EVP_pkey_dsa());
   if (pkey == nullptr) {
     return nullptr;
   }
@@ -468,7 +483,9 @@ EC_KEY *d2i_EC_PUBKEY(EC_KEY **out, const uint8_t **inp, long len) {
   }
   CBS cbs;
   CBS_init(&cbs, *inp, (size_t)len);
-  bssl::UniquePtr<EVP_PKEY> pkey(EVP_parse_public_key(&cbs));
+  const EVP_PKEY_ALG *const algs[] = {EVP_pkey_ec_p224(), EVP_pkey_ec_p256(),
+                                      EVP_pkey_ec_p384(), EVP_pkey_ec_p521()};
+  bssl::UniquePtr<EVP_PKEY> pkey = parse_spki(&cbs, algs);
   if (pkey == nullptr) {
     return nullptr;
   }
