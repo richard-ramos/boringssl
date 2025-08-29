@@ -251,7 +251,7 @@ static const ASN1_EXTERN_FUNCS x509_extern_funcs = {
     x509_i2d_cb,
 };
 
-IMPLEMENT_EXTERN_ASN1(X509, V_ASN1_SEQUENCE, x509_extern_funcs)
+IMPLEMENT_EXTERN_ASN1(X509, x509_extern_funcs)
 
 X509 *X509_dup(X509 *x509) {
   uint8_t *der = NULL;
