@@ -17,6 +17,7 @@
 
 #include <openssl/base.h>
 #include <openssl/evp.h>
+#include <openssl/span.h>
 #include <openssl/x509.h>
 
 #include "../asn1/internal.h"
@@ -37,13 +38,22 @@ typedef struct X509_val_st {
 DECLARE_ASN1_FUNCTIONS_const(X509_VAL)
 
 struct X509_pubkey_st {
-  X509_ALGOR *algor;
-  ASN1_BIT_STRING *public_key;
+  X509_ALGOR algor;
+  ASN1_BIT_STRING public_key;
   EVP_PKEY *pkey;
 } /* X509_PUBKEY */;
 
+void x509_pubkey_init(X509_PUBKEY *key);
+void x509_pubkey_cleanup(X509_PUBKEY *key);
+
+int x509_parse_public_key(CBS *cbs, X509_PUBKEY *out,
+                          bssl::Span<const EVP_PKEY_ALG *const> algs);
+int x509_marshal_public_key(CBB *cbb, const X509_PUBKEY *in);
+
 // X509_PUBKEY is an |ASN1_ITEM| whose ASN.1 type is SubjectPublicKeyInfo and C
 // type is |X509_PUBKEY*|.
+// TODO(crbug.com/42290417): Remove this when |X509| and |X509_REQ| no longer
+// depend on the tables.
 DECLARE_ASN1_ITEM(X509_PUBKEY)
 
 struct X509_name_entry_st {

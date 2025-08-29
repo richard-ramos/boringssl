@@ -141,23 +141,6 @@ int EVP_marshal_private_key(CBB *cbb, const EVP_PKEY *key) {
   return key->ameth->priv_encode(cbb, key);
 }
 
-static auto get_default_algs() {
-  // A set of algorithms to use by default in |EVP_parse_public_key| and
-  // |EVP_parse_private_key|.
-  return std::array{
-      EVP_pkey_ec_p224(),
-      EVP_pkey_ec_p256(),
-      EVP_pkey_ec_p384(),
-      EVP_pkey_ec_p521(),
-      EVP_pkey_ed25519(),
-      EVP_pkey_rsa(),
-      EVP_pkey_x25519(),
-      // TODO(crbug.com/438761503): Remove DSA from this set, after callers that
-      // need DSA pass in |EVP_pkey_dsa| explicitly.
-      EVP_pkey_dsa(),
-  };
-}
-
 EVP_PKEY *EVP_parse_public_key(CBS *cbs) {
   CBS elem;
   if (!CBS_get_asn1_element(cbs, &elem, CBS_ASN1_SEQUENCE)) {
@@ -165,7 +148,7 @@ EVP_PKEY *EVP_parse_public_key(CBS *cbs) {
     return nullptr;
   }
 
-  auto algs = get_default_algs();
+  auto algs = bssl::GetDefaultEVPAlgorithms();
   return EVP_PKEY_from_subject_public_key_info(CBS_data(&elem), CBS_len(&elem),
                                                algs.data(), algs.size());
 }
@@ -177,7 +160,7 @@ EVP_PKEY *EVP_parse_private_key(CBS *cbs) {
     return nullptr;
   }
 
-  auto algs = get_default_algs();
+  auto algs = bssl::GetDefaultEVPAlgorithms();
   return EVP_PKEY_from_private_key_info(CBS_data(&elem), CBS_len(&elem),
                                         algs.data(), algs.size());
 }

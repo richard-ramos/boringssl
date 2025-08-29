@@ -163,7 +163,7 @@ int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags,
     if (BIO_printf(bp, "%12sPublic Key Algorithm: ", "") <= 0) {
       return 0;
     }
-    if (i2a_ASN1_OBJECT(bp, ci->key->algor->algorithm) <= 0) {
+    if (i2a_ASN1_OBJECT(bp, ci->key->algor.algorithm) <= 0) {
       return 0;
     }
     if (BIO_puts(bp, "\n") <= 0) {
