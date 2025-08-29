@@ -140,6 +140,10 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
   if (!pval) {
     return 0;
   }
+  if (len < 0) {
+    OPENSSL_PUT_ERROR(ASN1, ASN1_R_BUFFER_TOO_SMALL);
+    goto err;
+  }
 
   if (buf != NULL) {
     assert(CRYPTO_BUFFER_data(buf) <= *in &&
@@ -217,7 +221,18 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
       }
       const ASN1_EXTERN_FUNCS *ef =
           reinterpret_cast<const ASN1_EXTERN_FUNCS *>(it->funcs);
-      return ef->asn1_ex_d2i(pval, in, len, it, opt, NULL);
+      CBS cbs;
+      CBS_init(&cbs, *in, len);
+      CBS copy = cbs;
+      if (!ef->asn1_ex_parse(pval, &cbs, it, opt)) {
+        goto err;
+      }
+      *in = CBS_data(&cbs);
+      // Check whether the function skipped an optional element.
+      //
+      // TODO(crbug.com/42290418): Switch the rest of this function to
+      // |asn1_ex_parse|'s calling convention.
+      return CBS_len(&cbs) == CBS_len(&copy) ? -1 : 1;
     }
 
     case ASN1_ITYPE_CHOICE: {

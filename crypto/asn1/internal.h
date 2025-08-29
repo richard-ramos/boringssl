@@ -291,8 +291,18 @@ typedef ASN1_VALUE *ASN1_d2i_func(ASN1_VALUE **a, const unsigned char **in,
                                   long length);
 typedef int ASN1_i2d_func(ASN1_VALUE *a, unsigned char **in);
 
-typedef int ASN1_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
-                        const ASN1_ITEM *it, int opt, ASN1_TLC *ctx);
+// An ASN1_ex_parse function should parse a value from |cbs| and set |*pval| to
+// the result. It should return one on success and zero on failure. If |opt| is
+// non-zero, the field may be optional. If an optional element is missing, the
+// function should return one and consume zero bytes from |cbs|.
+//
+// If |opt| is non-zero, the function can assume that |*pval| is nullptr on
+// entry. Otherwise, |*pval| may either be nullptr, or the result of
+// |ASN1_ex_new_func|. The function may either write into the existing object,
+// if any, or unconditionally make a new one. (The existing object comes from
+// tasn_new.cc recursively filling in objects before parsing into them.)
+typedef int ASN1_ex_parse(ASN1_VALUE **pval, CBS *cbs, const ASN1_ITEM *it,
+                          int opt);
 
 typedef int ASN1_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
                         const ASN1_ITEM *it);
@@ -302,7 +312,7 @@ typedef void ASN1_ex_free_func(ASN1_VALUE **pval, const ASN1_ITEM *it);
 typedef struct ASN1_EXTERN_FUNCS_st {
   ASN1_ex_new_func *asn1_ex_new;
   ASN1_ex_free_func *asn1_ex_free;
-  ASN1_ex_d2i *asn1_ex_d2i;
+  ASN1_ex_parse *asn1_ex_parse;
   ASN1_ex_i2d *asn1_ex_i2d;
 } ASN1_EXTERN_FUNCS;
 
