@@ -89,7 +89,7 @@ static void *s2i_skey_id(const X509V3_EXT_METHOD *method, const X509V3_CTX *ctx,
   if (ctx->subject_req) {
     pk = &ctx->subject_req->req_info->pubkey->public_key;
   } else {
-    pk = &ctx->subject_cert->cert_info->key->public_key;
+    pk = &ctx->subject_cert->key.public_key;
   }
 
   if (!EVP_Digest(pk->data, pk->length, pkey_dig, &diglen, EVP_sha1(), NULL)) {

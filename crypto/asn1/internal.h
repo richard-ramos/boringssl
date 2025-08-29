@@ -159,6 +159,9 @@ OPENSSL_EXPORT int asn1_utctime_to_tm(struct tm *tm, const ASN1_UTCTIME *d,
 OPENSSL_EXPORT int asn1_generalizedtime_to_tm(struct tm *tm,
                                               const ASN1_GENERALIZEDTIME *d);
 
+int asn1_parse_time(CBS *cbs, ASN1_TIME *out, int allow_utc_timezone_offset);
+int asn1_marshal_time(CBB *cbb, const ASN1_TIME *in);
+
 
 // The ASN.1 ANY type.
 
@@ -201,9 +204,6 @@ typedef struct ASN1_ENCODING_st {
   uint8_t *enc;
   // len is the length of |enc|. If zero, there is no saved encoding.
   size_t len;
-  // buf, if non-NULL, is the |CRYPTO_BUFFER| that |enc| points into. If NULL,
-  // |enc| must be released with |OPENSSL_free|.
-  CRYPTO_BUFFER *buf;
 } ASN1_ENCODING;
 
 int ASN1_item_ex_new(ASN1_VALUE **pval, const ASN1_ITEM *it);
@@ -214,14 +214,12 @@ void ASN1_template_free(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt);
 // ASN1_item_ex_d2i parses |len| bytes from |*in| as a structure of type |it|
 // and writes the result to |*pval|. If |tag| is non-negative, |it| is
 // implicitly tagged with the tag specified by |tag| and |aclass|. If |opt| is
-// non-zero, the value is optional. If |buf| is non-NULL, |*in| must point into
-// |buf|.
+// non-zero, the value is optional.
 //
 // This function returns one and advances |*in| if an object was successfully
 // parsed, -1 if an optional value was successfully skipped, and zero on error.
 int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
-                     const ASN1_ITEM *it, int tag, int aclass, char opt,
-                     CRYPTO_BUFFER *buf);
+                     const ASN1_ITEM *it, int tag, int aclass, char opt);
 
 // ASN1_item_ex_i2d encodes |*pval| as a value of type |it| to |out| under the
 // i2d output convention. It returns a non-zero length on success and -1 on
@@ -267,7 +265,7 @@ int asn1_enc_restore(int *len, unsigned char **out, ASN1_VALUE **pval,
 // returns one on success and zero on error. If |buf| is non-NULL, |in| must
 // point into |buf|.
 int asn1_enc_save(ASN1_VALUE **pval, const uint8_t *in, size_t inlen,
-                  const ASN1_ITEM *it, CRYPTO_BUFFER *buf);
+                  const ASN1_ITEM *it);
 
 // asn1_encoding_clear clears the cached encoding in |enc|.
 void asn1_encoding_clear(ASN1_ENCODING *enc);

@@ -27,36 +27,36 @@
 
 #include "../asn1/internal.h"
 #include "../bytestring/internal.h"
+#include "../evp/internal.h"
 #include "../internal.h"
 #include "internal.h"
 
 static CRYPTO_EX_DATA_CLASS g_ex_data_class = CRYPTO_EX_DATA_CLASS_INIT;
 
-ASN1_SEQUENCE_enc(X509_CINF, enc, 0) = {
-    ASN1_EXP_OPT(X509_CINF, version, ASN1_INTEGER, 0),
-    ASN1_SIMPLE(X509_CINF, serialNumber, ASN1_INTEGER),
-    ASN1_SIMPLE(X509_CINF, tbs_sig_alg, X509_ALGOR),
-    ASN1_SIMPLE(X509_CINF, issuer, X509_NAME),
-    ASN1_SIMPLE(X509_CINF, validity, X509_VAL),
-    ASN1_SIMPLE(X509_CINF, subject, X509_NAME),
-    ASN1_SIMPLE(X509_CINF, key, X509_PUBKEY),
-    ASN1_IMP_OPT(X509_CINF, issuerUID, ASN1_BIT_STRING, 1),
-    ASN1_IMP_OPT(X509_CINF, subjectUID, ASN1_BIT_STRING, 2),
-    ASN1_EXP_SEQUENCE_OF_OPT(X509_CINF, extensions, X509_EXTENSION, 3),
-} ASN1_SEQUENCE_END_enc(X509_CINF, X509_CINF)
+static constexpr CBS_ASN1_TAG kVersionTag =
+    CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 0;
+static constexpr CBS_ASN1_TAG kIssuerUIDTag = CBS_ASN1_CONTEXT_SPECIFIC | 1;
+static constexpr CBS_ASN1_TAG kSubjectUIDTag = CBS_ASN1_CONTEXT_SPECIFIC | 2;
+static constexpr CBS_ASN1_TAG kExtensionsTag =
+    CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 3;
 
-IMPLEMENT_ASN1_FUNCTIONS(X509_CINF)
-
-// x509_new_null returns a new |X509| object where the |cert_info|, |sig_alg|,
-// and |signature| fields are not yet filled in.
-static X509 *x509_new_null(void) {
-  X509 *ret = reinterpret_cast<X509 *>(OPENSSL_zalloc(sizeof(X509)));
-  if (ret == NULL) {
-    return NULL;
+// x509_new_null returns a new |X509| object where the |issuer| and |subject|
+// fields are not yet filled in.
+static bssl::UniquePtr<X509> x509_new_null(void) {
+  bssl::UniquePtr<X509> ret(
+      reinterpret_cast<X509 *>(OPENSSL_zalloc(sizeof(X509))));
+  if (ret == nullptr) {
+    return nullptr;
   }
 
   ret->references = 1;
   ret->ex_pathlen = -1;
+  ret->version = X509_VERSION_1;
+  asn1_string_init(&ret->serialNumber, V_ASN1_INTEGER);
+  x509_algor_init(&ret->tbs_sig_alg);
+  asn1_string_init(&ret->notBefore, -1);
+  asn1_string_init(&ret->notAfter, -1);
+  x509_pubkey_init(&ret->key);
   x509_algor_init(&ret->sig_alg);
   asn1_string_init(&ret->signature, V_ASN1_BIT_STRING);
   CRYPTO_new_ex_data(&ret->ex_data);
@@ -65,18 +65,19 @@ static X509 *x509_new_null(void) {
 }
 
 X509 *X509_new(void) {
-  X509 *ret = x509_new_null();
-  if (ret == NULL) {
-    return NULL;
+  bssl::UniquePtr<X509> ret = x509_new_null();
+  if (ret == nullptr) {
+    return nullptr;
   }
-
-  ret->cert_info = X509_CINF_new();
-  if (ret->cert_info == NULL) {
-    X509_free(ret);
-    return NULL;
+  // TODO(crbug.com/42290417): When the |X509_NAME| parser is CBS-based and
+  // writes into a pre-existing |X509_NAME|, we will no longer need the
+  // |X509_new| and |x509_new_null| split.
+  ret->issuer = X509_NAME_new();
+  ret->subject = X509_NAME_new();
+  if (ret->issuer == nullptr || ret->subject == nullptr) {
+    return nullptr;
   }
-
-  return ret;
+  return ret.release();
 }
 
 void X509_free(X509 *x509) {
@@ -86,9 +87,19 @@ void X509_free(X509 *x509) {
 
   CRYPTO_free_ex_data(&g_ex_data_class, &x509->ex_data);
 
-  X509_CINF_free(x509->cert_info);
+  asn1_string_cleanup(&x509->serialNumber);
+  x509_algor_cleanup(&x509->tbs_sig_alg);
+  X509_NAME_free(x509->issuer);
+  asn1_string_cleanup(&x509->notBefore);
+  asn1_string_cleanup(&x509->notAfter);
+  X509_NAME_free(x509->subject);
+  x509_pubkey_cleanup(&x509->key);
+  ASN1_BIT_STRING_free(x509->issuerUID);
+  ASN1_BIT_STRING_free(x509->subjectUID);
+  sk_X509_EXTENSION_pop_free(x509->extensions, X509_EXTENSION_free);
   x509_algor_cleanup(&x509->sig_alg);
   asn1_string_cleanup(&x509->signature);
+  CRYPTO_BUFFER_free(x509->buf);
   ASN1_OCTET_STRING_free(x509->skid);
   AUTHORITY_KEYID_free(x509->akid);
   CRL_DIST_POINTS_free(x509->crldp);
@@ -100,18 +111,38 @@ void X509_free(X509 *x509) {
   OPENSSL_free(x509);
 }
 
-static X509 *x509_parse(CBS *cbs, CRYPTO_BUFFER *buf) {
+static int parse_name(CBS *cbs, X509_NAME **out) {
+  // TODO(crbug.com/42290417): Make the |X509_NAME| parser CBS-based and avoid
+  // this awkward conversion.
+  const uint8_t *p = CBS_data(cbs);
+  X509_NAME_free(*out);
+  *out = d2i_X509_NAME(nullptr, &p, CBS_len(cbs));
+  if (*out == nullptr) {
+    return 0;
+  }
+  BSSL_CHECK(CBS_skip(cbs, p - CBS_data(cbs)));
+  return 1;
+}
+
+
+X509 *X509_parse_from_buffer(CRYPTO_BUFFER *buf) {
   bssl::UniquePtr<X509> ret(x509_new_null());
   if (ret == nullptr) {
     return nullptr;
   }
 
-  CBS cert, tbs;
-  if (!CBS_get_asn1(cbs, &cert, CBS_ASN1_SEQUENCE) ||
+  // Save the buffer to cache the original encoding.
+  ret->buf = bssl::UpRef(buf).release();
+
+  // Parse the Certificate.
+  CBS cbs, cert, tbs;
+  CRYPTO_BUFFER_init_CBS(buf, &cbs);
+  if (!CBS_get_asn1(&cbs, &cert, CBS_ASN1_SEQUENCE) ||  //
+      CBS_len(&cbs) != 0 ||
       // Bound the length to comfortably fit in an int. Lengths in this
       // module often omit overflow checks.
       CBS_len(&cert) > INT_MAX / 2 ||
-      !CBS_get_asn1_element(&cert, &tbs, CBS_ASN1_SEQUENCE) ||
+      !CBS_get_asn1(&cert, &tbs, CBS_ASN1_SEQUENCE) ||
       !x509_parse_algorithm(&cert, &ret->sig_alg) ||
       // For just the signature field, we accept non-minimal BER lengths, though
       // not indefinite-length encoding. See b/18228011.
@@ -124,49 +155,168 @@ static X509 *x509_parse(CBS *cbs, CRYPTO_BUFFER *buf) {
     return nullptr;
   }
 
-  // TODO(crbug.com/boringssl/443): When the rest of the library is decoupled
-  // from the tasn_*.c implementation, replace this with |CBS|-based
-  // functions.
-  const uint8_t *inp = CBS_data(&tbs);
-  if (ASN1_item_ex_d2i((ASN1_VALUE **)&ret->cert_info, &inp, CBS_len(&tbs),
-                       ASN1_ITEM_rptr(X509_CINF), /*tag=*/-1,
-                       /*aclass=*/0, /*opt=*/0, buf) <= 0 ||
-      inp != CBS_data(&tbs) + CBS_len(&tbs)) {
-    return nullptr;
-  }
-
-  // The version must be one of v1(0), v2(1), or v3(2).
-  long version = X509_VERSION_1;
-  if (ret->cert_info->version != nullptr) {
-    version = ASN1_INTEGER_get(ret->cert_info->version);
-    // TODO(https://crbug.com/boringssl/364): |X509_VERSION_1| should
-    // also be rejected here. This means an explicitly-encoded X.509v1
-    // version. v1 is DEFAULT, so DER requires it be omitted.
-    if (version < X509_VERSION_1 || version > X509_VERSION_3) {
+  // Parse the TBSCertificate.
+  if (CBS_peek_asn1_tag(&tbs, kVersionTag)) {
+    CBS wrapper;
+    uint64_t version;
+    if (!CBS_get_asn1(&tbs, &wrapper, kVersionTag) ||
+        !CBS_get_asn1_uint64(&wrapper, &version) ||  //
+        CBS_len(&wrapper) != 0) {
+      OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
+      return nullptr;
+    }
+    // The version must be one of v1(0), v2(1), or v3(2).
+    // TODO(https://crbug.com/42290225): Also reject |X509_VERSION_1|. v1 is
+    // DEFAULT, so DER requires it be omitted.
+    if (version != X509_VERSION_1 && version != X509_VERSION_2 &&
+        version != X509_VERSION_3) {
       OPENSSL_PUT_ERROR(X509, X509_R_INVALID_VERSION);
       return nullptr;
     }
+    ret->version = static_cast<uint8_t>(version);
+  } else {
+    ret->version = X509_VERSION_1;
   }
-
-  // Per RFC 5280, section 4.1.2.8, these fields require v2 or v3.
-  if (version == X509_VERSION_1 && (ret->cert_info->issuerUID != nullptr ||
-                                    ret->cert_info->subjectUID != nullptr)) {
-    OPENSSL_PUT_ERROR(X509, X509_R_INVALID_FIELD_FOR_VERSION);
+  CBS validity;
+  if (!asn1_parse_integer(&tbs, &ret->serialNumber, /*tag=*/0) ||
+      !x509_parse_algorithm(&tbs, &ret->tbs_sig_alg) ||
+      !parse_name(&tbs, &ret->issuer) ||
+      !CBS_get_asn1(&tbs, &validity, CBS_ASN1_SEQUENCE) ||
+      !asn1_parse_time(&validity, &ret->notBefore,
+                       /*allow_utc_timezone_offset=*/1) ||
+      !asn1_parse_time(&validity, &ret->notAfter,
+                       /*allow_utc_timezone_offset=*/1) ||
+      CBS_len(&validity) != 0 ||  //
+      !parse_name(&tbs, &ret->subject) ||
+      // TODO(crbug.com/42290364): Expose an API to use different algorithms.
+      !x509_parse_public_key(&tbs, &ret->key,
+                             bssl::GetDefaultEVPAlgorithms())) {
+    OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
     return nullptr;
   }
-
-  // Per RFC 5280, section 4.1.2.9, extensions require v3.
-  if (version != X509_VERSION_3 && ret->cert_info->extensions != nullptr) {
-    OPENSSL_PUT_ERROR(X509, X509_R_INVALID_FIELD_FOR_VERSION);
+  // Per RFC 5280, section 4.1.2.8, these fields require v2 or v3:
+  if (ret->version >= X509_VERSION_2 &&
+      CBS_peek_asn1_tag(&tbs, kIssuerUIDTag)) {
+    ret->issuerUID = ASN1_BIT_STRING_new();
+    if (ret->issuerUID == nullptr ||
+        !asn1_parse_bit_string(&tbs, ret->issuerUID, kIssuerUIDTag)) {
+      return nullptr;
+    }
+  }
+  if (ret->version >= X509_VERSION_2 &&
+      CBS_peek_asn1_tag(&tbs, kSubjectUIDTag)) {
+    ret->subjectUID = ASN1_BIT_STRING_new();
+    if (ret->subjectUID == nullptr ||
+        !asn1_parse_bit_string(&tbs, ret->subjectUID, kSubjectUIDTag)) {
+      return nullptr;
+    }
+  }
+  // Per RFC 5280, section 4.1.2.9, extensions require v3:
+  if (ret->version >= X509_VERSION_3 &&
+      CBS_peek_asn1_tag(&tbs, kExtensionsTag)) {
+    CBS wrapper;
+    if (!CBS_get_asn1(&tbs, &wrapper, kExtensionsTag)) {
+      OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
+      return nullptr;
+    }
+    // TODO(crbug.com/42290219): Empty extension lists should be rejected. An
+    // empty extensions list is encoded by omitting the field altogether. libpki
+    // already rejects this.
+    const uint8_t *p = CBS_data(&wrapper);
+    ret->extensions = d2i_X509_EXTENSIONS(nullptr, &p, CBS_len(&wrapper));
+    if (ret->extensions == nullptr ||
+        p != CBS_data(&wrapper) + CBS_len(&wrapper)) {
+      OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
+      return nullptr;
+    }
+  }
+  if (CBS_len(&tbs) != 0) {
+    OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
     return nullptr;
   }
 
   return ret.release();
 }
 
+static bssl::UniquePtr<X509> x509_parse(CBS *cbs) {
+  CBS cert;
+  if (!CBS_get_asn1_element(cbs, &cert, CBS_ASN1_SEQUENCE)) {
+    OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
+    return nullptr;
+  }
+
+  bssl::UniquePtr<CRYPTO_BUFFER> buf(CRYPTO_BUFFER_new_from_CBS(&cert, nullptr));
+  if (buf == nullptr) {
+    return nullptr;
+  }
+  return bssl::UniquePtr<X509>(X509_parse_from_buffer(buf.get()));
+}
+
+int x509_marshal_tbs_cert(CBB *cbb, X509 *x509) {
+  if (x509->buf != nullptr) {
+    // Replay the saved TBSCertificate from the |CRYPTO_BUFFER|, to verify
+    // exactly what we parsed. The |CRYPTO_BUFFER| contains the full
+    // Certificate, so we need to find the TBSCertificate portion.
+    CBS cbs, cert, tbs;
+    CRYPTO_BUFFER_init_CBS(x509->buf, &cbs);
+    if (!CBS_get_asn1(&cbs, &cert, CBS_ASN1_SEQUENCE) ||
+        !CBS_get_asn1_element(&cert, &tbs, CBS_ASN1_SEQUENCE)) {
+      // This should be impossible.
+      OPENSSL_PUT_ERROR(X509, ERR_R_INTERNAL_ERROR);
+      return 0;
+    }
+    return CBB_add_bytes(cbb, CBS_data(&tbs), CBS_len(&tbs));
+  }
+
+  // No saved TBSCertificate encoding. Encode it anew.
+  CBB tbs, version, validity, extensions;
+  if (!CBB_add_asn1(cbb, &tbs, CBS_ASN1_SEQUENCE)) {
+    return 0;
+  }
+  if (x509->version != X509_VERSION_1) {
+    if (!CBB_add_asn1(&tbs, &version, kVersionTag) ||
+        !CBB_add_asn1_uint64(&version, x509->version)) {
+      return 0;
+    }
+  }
+  if (!asn1_marshal_integer(&tbs, &x509->serialNumber, /*tag=*/0) ||
+      !x509_marshal_algorithm(&tbs, &x509->tbs_sig_alg) ||
+      !x509_marshal_name(&tbs, x509->issuer) ||
+      !CBB_add_asn1(&tbs, &validity, CBS_ASN1_SEQUENCE) ||
+      !asn1_marshal_time(&validity, &x509->notBefore) ||
+      !asn1_marshal_time(&validity, &x509->notAfter) ||
+      !x509_marshal_name(&tbs, x509->subject) ||
+      !x509_marshal_public_key(&tbs, &x509->key) ||
+      (x509->issuerUID != nullptr &&
+       !asn1_marshal_bit_string(&tbs, x509->issuerUID, kIssuerUIDTag)) ||
+      (x509->subjectUID != nullptr &&
+       !asn1_marshal_bit_string(&tbs, x509->subjectUID, kSubjectUIDTag))) {
+    return 0;
+  }
+  if (x509->extensions != nullptr) {
+    int len = i2d_X509_EXTENSIONS(x509->extensions, nullptr);
+    uint8_t *out;
+    if (len <= 0 ||  //
+        !CBB_add_asn1(&tbs, &extensions, kExtensionsTag) ||
+        !CBB_add_space(&extensions, &out, len) ||
+        i2d_X509_EXTENSIONS(x509->extensions, &out) != len) {
+      return 0;
+    }
+  }
+  return CBB_flush(cbb);
+}
+
+static int x509_marshal(CBB *cbb, X509 *x509) {
+  CBB cert;
+  return CBB_add_asn1(cbb, &cert, CBS_ASN1_SEQUENCE) &&
+         x509_marshal_tbs_cert(&cert, x509) &&
+         x509_marshal_algorithm(&cert, &x509->sig_alg) &&
+         asn1_marshal_bit_string(&cert, &x509->signature, /*tag=*/0) &&
+         CBB_flush(cbb);
+}
+
 X509 *d2i_X509(X509 **out, const uint8_t **inp, long len) {
-  return bssl::D2IFromCBS(out, inp, len,
-                          [](CBS *cbs) { return x509_parse(cbs, nullptr); });
+  return bssl::D2IFromCBS(out, inp, len, x509_parse);
 }
 
 int i2d_X509(X509 *x509, uint8_t **outp) {
@@ -176,27 +326,8 @@ int i2d_X509(X509 *x509, uint8_t **outp) {
   }
 
   return bssl::I2DFromCBB(
-      /*initial_capacity=*/64, outp, [&](CBB *cbb) -> bool {
-        CBB cert;
-        if (!CBB_add_asn1(cbb, &cert, CBS_ASN1_SEQUENCE)) {
-          return false;
-        }
-
-        // TODO(crbug.com/boringssl/443): When the rest of the library is
-        // decoupled from the tasn_*.c implementation, replace this with
-        // |CBB|-based functions.
-        uint8_t *out;
-        int len = i2d_X509_CINF(x509->cert_info, NULL);
-        if (len < 0 ||  //
-            !CBB_add_space(&cert, &out, static_cast<size_t>(len)) ||
-            i2d_X509_CINF(x509->cert_info, &out) != len ||
-            !x509_marshal_algorithm(&cert, &x509->sig_alg) ||
-            !asn1_marshal_bit_string(&cert, &x509->signature, /*tag=*/0) ||
-            !CBB_flush(cbb)) {
-          return false;
-        }
-        return true;
-      });
+      /*initial_capacity=*/256, outp,
+      [&](CBB *cbb) -> bool { return x509_marshal(cbb, x509); });
 }
 
 static int x509_new_cb(ASN1_VALUE **pval, const ASN1_ITEM *it) {
@@ -215,13 +346,13 @@ static int x509_parse_cb(ASN1_VALUE **pval, CBS *cbs, const ASN1_ITEM *it,
     return 1;
   }
 
-  X509 *ret = x509_parse(cbs, nullptr);
+  bssl::UniquePtr<X509> ret = x509_parse(cbs);
   if (ret == nullptr) {
     return 0;
   }
 
   X509_free((X509 *)*pval);
-  *pval = (ASN1_VALUE *)ret;
+  *pval = (ASN1_VALUE *)ret.release();
   return 1;
 }
 
@@ -244,18 +375,6 @@ X509 *X509_dup(X509 *x509) {
   const uint8_t *inp = der;
   X509 *ret = d2i_X509(NULL, &inp, len);
   OPENSSL_free(der);
-  return ret;
-}
-
-X509 *X509_parse_from_buffer(CRYPTO_BUFFER *buf) {
-  CBS cbs;
-  CBS_init(&cbs, CRYPTO_BUFFER_data(buf), CRYPTO_BUFFER_len(buf));
-  X509 *ret = x509_parse(&cbs, buf);
-  if (ret == NULL || CBS_len(&cbs) != 0) {
-    X509_free(ret);
-    return NULL;
-  }
-
   return ret;
 }
 
@@ -383,17 +502,20 @@ int i2d_X509_AUX(X509 *a, unsigned char **pp) {
 }
 
 int i2d_re_X509_tbs(X509 *x509, unsigned char **outp) {
-  asn1_encoding_clear(&x509->cert_info->enc);
-  return i2d_X509_CINF(x509->cert_info, outp);
+  CRYPTO_BUFFER_free(x509->buf);
+  x509->buf = nullptr;
+  return i2d_X509_tbs(x509, outp);
 }
 
 int i2d_X509_tbs(X509 *x509, unsigned char **outp) {
-  return i2d_X509_CINF(x509->cert_info, outp);
+  return bssl::I2DFromCBB(/*initial_capacity=*/128, outp, [&](CBB *cbb) -> bool {
+    return x509_marshal_tbs_cert(cbb, x509);
+  });
 }
 
 int X509_set1_signature_algo(X509 *x509, const X509_ALGOR *algo) {
   return X509_ALGOR_copy(&x509->sig_alg, algo) &&
-         X509_ALGOR_copy(x509->cert_info->tbs_sig_alg, algo);
+         X509_ALGOR_copy(&x509->tbs_sig_alg, algo);
 }
 
 int X509_set1_signature_value(X509 *x509, const uint8_t *sig, size_t sig_len) {

@@ -132,42 +132,30 @@ int i2d_X509_PUBKEY(const X509_PUBKEY *key, uint8_t **outp) {
 IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_PUBKEY, X509_PUBKEY_new, X509_PUBKEY_free,
                              x509_parse_public_key_default, i2d_X509_PUBKEY)
 
-int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey) {
-  X509_PUBKEY *pk = NULL;
-  uint8_t *spki = NULL;
-  size_t spki_len;
-
-  if (x == NULL) {
+int x509_pubkey_set1(X509_PUBKEY *key, EVP_PKEY *pkey) {
+  bssl::ScopedCBB cbb;
+  if (!CBB_init(cbb.get(), 64) ||
+      !EVP_marshal_public_key(cbb.get(), pkey)) {
+    OPENSSL_PUT_ERROR(X509, X509_R_PUBLIC_KEY_ENCODE_ERROR);
     return 0;
   }
 
-  CBB cbb;
-  const uint8_t *p;
-  if (!CBB_init(&cbb, 0) ||  //
-      !EVP_marshal_public_key(&cbb, pkey) ||
-      !CBB_finish(&cbb, &spki, &spki_len) ||  //
-      spki_len > LONG_MAX) {
-    CBB_cleanup(&cbb);
-    OPENSSL_PUT_ERROR(X509, X509_R_PUBLIC_KEY_ENCODE_ERROR);
-    goto error;
-  }
+  CBS cbs;
+  CBS_init(&cbs, CBB_data(cbb.get()), CBB_len(cbb.get()));
+  // TODO(crbug.com/42290364): Use an |EVP_PKEY_ALG| derived from |pkey|.
+  // |X509_PUBKEY_get0| does not currently work when setting, say, an
+  // |EVP_PKEY_RSA_PSS| key.
+  return x509_parse_public_key(&cbs, key, bssl::GetDefaultEVPAlgorithms());
+}
 
-  p = spki;
-  pk = d2i_X509_PUBKEY(NULL, &p, (long)spki_len);
-  if (pk == NULL || p != spki + spki_len) {
-    OPENSSL_PUT_ERROR(X509, X509_R_PUBLIC_KEY_DECODE_ERROR);
-    goto error;
+int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey) {
+  bssl::UniquePtr<X509_PUBKEY> new_key(X509_PUBKEY_new());
+  if (new_key == nullptr || !x509_pubkey_set1(new_key.get(), pkey)) {
+    return 0;
   }
-
-  OPENSSL_free(spki);
   X509_PUBKEY_free(*x);
-  *x = pk;
-
+  *x = new_key.release();
   return 1;
-error:
-  X509_PUBKEY_free(pk);
-  OPENSSL_free(spki);
-  return 0;
 }
 
 EVP_PKEY *X509_PUBKEY_get0(const X509_PUBKEY *key) {

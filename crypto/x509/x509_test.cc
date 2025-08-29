@@ -2663,15 +2663,12 @@ TEST(X509Test, TestFromBuffer) {
   bssl::UniquePtr<X509> root(X509_parse_from_buffer(buf.get()));
   ASSERT_TRUE(root);
 
-  const uint8_t *enc_pointer = root->cert_info->enc.enc;
-  const uint8_t *buf_pointer = CRYPTO_BUFFER_data(buf.get());
-  ASSERT_GE(enc_pointer, buf_pointer);
-  ASSERT_LT(enc_pointer, buf_pointer + CRYPTO_BUFFER_len(buf.get()));
+  EXPECT_EQ(buf.get(), root->buf);
   buf.reset();
 
-  /* This ensures the X509 took a reference to |buf|, otherwise this will be a
-   * reference to free memory and ASAN should notice. */
-  ASSERT_EQ(0x30, enc_pointer[0]);
+  // This ensures the X509 took a reference to |buf|, otherwise this will be a
+  // reference to free memory and ASAN should notice.
+  CRYPTO_BUFFER_len(root->buf);
 }
 
 TEST(X509Test, TestFromBufferWithTrailingData) {
@@ -2730,28 +2727,23 @@ TEST(X509Test, TestFromBufferReused) {
   size_t data2_len;
   bssl::UniquePtr<uint8_t> data2;
   ASSERT_TRUE(PEMToDER(&data2, &data2_len, kLeafPEM));
-  EXPECT_TRUE(buffers_alias(root->cert_info->enc.enc, root->cert_info->enc.len,
-                            CRYPTO_BUFFER_data(buf.get()),
-                            CRYPTO_BUFFER_len(buf.get())));
+  EXPECT_EQ(root->buf, buf.get());
 
   // Historically, this function tested the interaction betweeen
   // |X509_parse_from_buffer| and object reuse. We no longer support object
   // reuse, so |d2i_X509| will replace |raw| with a new object. However, we
   // retain this test to verify that releasing objects from |d2i_X509| works
-  // correctly.
+  // correctly and doesn't keep the old buffer.
   X509 *raw = root.release();
   const uint8_t *inp = data2.get();
   X509 *ret = d2i_X509(&raw, &inp, data2_len);
   root.reset(raw);
 
   ASSERT_EQ(root.get(), ret);
-  ASSERT_EQ(nullptr, root->cert_info->enc.buf);
-  EXPECT_FALSE(buffers_alias(root->cert_info->enc.enc, root->cert_info->enc.len,
-                             CRYPTO_BUFFER_data(buf.get()),
-                             CRYPTO_BUFFER_len(buf.get())));
+  ASSERT_NE(buf.get(), root->buf);
 
-  // Free |data2| and ensure that |root| took its own copy. Otherwise the
-  // following will trigger a use-after-free.
+  // Free |data2| and ensure that |root| took its own copy. Otherwise
+  // serializing |root|, below, will trigger a use-after-free.
   data2.reset();
 
   uint8_t *i2d = nullptr;
@@ -2760,10 +2752,7 @@ TEST(X509Test, TestFromBufferReused) {
   bssl::UniquePtr<uint8_t> i2d_storage(i2d);
 
   ASSERT_TRUE(PEMToDER(&data2, &data2_len, kLeafPEM));
-
-  ASSERT_EQ(static_cast<long>(data2_len), i2d_len);
-  ASSERT_EQ(0, OPENSSL_memcmp(data2.get(), i2d, i2d_len));
-  ASSERT_EQ(nullptr, root->cert_info->enc.buf);
+  EXPECT_EQ(Bytes(i2d, i2d_len), Bytes(data2.get(), data2_len));
 }
 
 TEST(X509Test, TestFailedParseFromBuffer) {

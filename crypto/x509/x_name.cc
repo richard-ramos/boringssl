@@ -152,7 +152,7 @@ static int x509_name_ex_parse(ASN1_VALUE **val, CBS *cbs, const ASN1_ITEM *it,
   ASN1_VALUE *intname_val = NULL;
   if (ASN1_item_ex_d2i(&intname_val, &p, len,
                        ASN1_ITEM_rptr(X509_NAME_INTERNAL), /*tag=*/-1,
-                       /*aclass=*/0, /*opt=*/0, /*buf=*/NULL) <= 0) {
+                       /*aclass=*/0, /*opt=*/0) <= 0) {
     return 0;
   }
   intname = (STACK_OF(STACK_OF_X509_NAME_ENTRY) *)intname_val;

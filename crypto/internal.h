@@ -23,6 +23,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <utility>
+#include <type_traits>
+
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)
 #include <valgrind/memcheck.h>
 #endif
@@ -1602,6 +1605,30 @@ static inline uint64_t CRYPTO_subc_u64(uint64_t x, uint64_t y, uint64_t borrow,
 #define CRYPTO_addc_w CRYPTO_addc_u32
 #define CRYPTO_subc_w CRYPTO_subc_u32
 #endif
+
+
+BSSL_NAMESPACE_BEGIN
+// Cleanup implements a custom scope guard, when the cleanup logic does not fit
+// in a destructor. Usage:
+//
+//     bssl::Cleanup cleanup = [&] { SomeCleanupWork(local_var); };
+template <typename F>
+class Cleanup {
+ public:
+  static_assert(std::is_invocable_v<F>);
+  static_assert(std::is_same_v<std::invoke_result_t<F>, void>);
+
+  Cleanup(F func) : func_(func) {}
+  Cleanup(const Cleanup &) = delete;
+  Cleanup &operator=(const Cleanup &) = delete;
+  ~Cleanup() { func_(); }
+
+ private:
+  F func_;
+};
+template <typename F>
+Cleanup(F func) -> Cleanup<F>;
+BSSL_NAMESPACE_END
 
 
 #endif  // OPENSSL_HEADER_CRYPTO_INTERNAL_H

@@ -39,16 +39,16 @@ static int asn1_check_tlen(long *olen, int *otag, unsigned char *oclass,
 
 static int asn1_template_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
                                 long len, const ASN1_TEMPLATE *tt, char opt,
-                                CRYPTO_BUFFER *buf, int depth);
+                                int depth);
 static int asn1_template_noexp_d2i(ASN1_VALUE **val, const unsigned char **in,
                                    long len, const ASN1_TEMPLATE *tt, char opt,
-                                   CRYPTO_BUFFER *buf, int depth);
+                                   int depth);
 static int asn1_d2i_ex_primitive(ASN1_VALUE **pval, const unsigned char **in,
                                  long len, const ASN1_ITEM *it, int tag,
                                  int aclass, char opt);
 static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
                             long len, const ASN1_ITEM *it, int tag, int aclass,
-                            char opt, CRYPTO_BUFFER *buf, int depth);
+                            char opt, int depth);
 
 unsigned long ASN1_tag2bit(int tag) {
   switch (tag) {
@@ -98,7 +98,7 @@ ASN1_VALUE *ASN1_item_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
                           const ASN1_ITEM *it) {
   ASN1_VALUE *ret = NULL;
   if (asn1_item_ex_d2i(&ret, in, len, it, /*tag=*/-1, /*aclass=*/0, /*opt=*/0,
-                       /*buf=*/NULL, /*depth=*/0) <= 0) {
+                       /*depth=*/0) <= 0) {
     // Clean up, in case the caller left a partial object.
     //
     // TODO(davidben): I don't think it can leave one, but the codepaths below
@@ -128,7 +128,7 @@ ASN1_VALUE *ASN1_item_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
 
 static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
                             long len, const ASN1_ITEM *it, int tag, int aclass,
-                            char opt, CRYPTO_BUFFER *buf, int depth) {
+                            char opt, int depth) {
   const ASN1_TEMPLATE *tt, *errtt = NULL;
   const unsigned char *p = NULL, *q;
   unsigned char oclass;
@@ -143,11 +143,6 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
   if (len < 0) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_BUFFER_TOO_SMALL);
     goto err;
-  }
-
-  if (buf != NULL) {
-    assert(CRYPTO_BUFFER_data(buf) <= *in &&
-           *in + len <= CRYPTO_BUFFER_data(buf) + CRYPTO_BUFFER_len(buf));
   }
 
   // Bound |len| to comfortably fit in an int. Lengths in this module often
@@ -172,8 +167,7 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
           OPENSSL_PUT_ERROR(ASN1, ASN1_R_ILLEGAL_OPTIONS_ON_ITEM_TEMPLATE);
           goto err;
         }
-        return asn1_template_ex_d2i(pval, in, len, it->templates, opt, buf,
-                                    depth);
+        return asn1_template_ex_d2i(pval, in, len, it->templates, opt, depth);
       }
       return asn1_d2i_ex_primitive(pval, in, len, it, tag, aclass, opt);
 
@@ -267,7 +261,7 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
       for (i = 0, tt = it->templates; i < it->tcount; i++, tt++) {
         pchptr = asn1_get_field_ptr(pval, tt);
         // We mark field as OPTIONAL so its absence can be recognised.
-        ret = asn1_template_ex_d2i(pchptr, &p, len, tt, 1, buf, depth);
+        ret = asn1_template_ex_d2i(pchptr, &p, len, tt, 1, depth);
         // If field not present, try the next one
         if (ret == -1) {
           continue;
@@ -373,7 +367,7 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
         }
         // attempt to read in field, allowing each to be OPTIONAL
 
-        ret = asn1_template_ex_d2i(pseqval, &p, len, seqtt, isopt, buf, depth);
+        ret = asn1_template_ex_d2i(pseqval, &p, len, seqtt, isopt, depth);
         if (!ret) {
           errtt = seqtt;
           goto err;
@@ -412,7 +406,7 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
         }
       }
       // Save encoding
-      if (!asn1_enc_save(pval, *in, p - *in, it, buf)) {
+      if (!asn1_enc_save(pval, *in, p - *in, it)) {
         goto auxerr;
       }
       if (asn1_cb && !asn1_cb(ASN1_OP_D2I_POST, pval, it, NULL)) {
@@ -438,10 +432,8 @@ err:
 }
 
 int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
-                     const ASN1_ITEM *it, int tag, int aclass, char opt,
-                     CRYPTO_BUFFER *buf) {
-  return asn1_item_ex_d2i(pval, in, len, it, tag, aclass, opt, buf,
-                          /*depth=*/0);
+                     const ASN1_ITEM *it, int tag, int aclass, char opt) {
+  return asn1_item_ex_d2i(pval, in, len, it, tag, aclass, opt, /*depth=*/0);
 }
 
 // Templates are handled with two separate functions. One handles any
@@ -449,7 +441,7 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
 
 static int asn1_template_ex_d2i(ASN1_VALUE **val, const unsigned char **in,
                                 long inlen, const ASN1_TEMPLATE *tt, char opt,
-                                CRYPTO_BUFFER *buf, int depth) {
+                                int depth) {
   int aclass;
   int ret;
   long len;
@@ -481,7 +473,7 @@ static int asn1_template_ex_d2i(ASN1_VALUE **val, const unsigned char **in,
       return 0;
     }
     // We've found the field so it can't be OPTIONAL now
-    ret = asn1_template_noexp_d2i(val, &p, len, tt, /*opt=*/0, buf, depth);
+    ret = asn1_template_noexp_d2i(val, &p, len, tt, /*opt=*/0, depth);
     if (!ret) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_NESTED_ASN1_ERROR);
       return 0;
@@ -494,7 +486,7 @@ static int asn1_template_ex_d2i(ASN1_VALUE **val, const unsigned char **in,
       goto err;
     }
   } else {
-    return asn1_template_noexp_d2i(val, in, inlen, tt, opt, buf, depth);
+    return asn1_template_noexp_d2i(val, in, inlen, tt, opt, depth);
   }
 
   *in = p;
@@ -507,7 +499,7 @@ err:
 
 static int asn1_template_noexp_d2i(ASN1_VALUE **val, const unsigned char **in,
                                    long len, const ASN1_TEMPLATE *tt, char opt,
-                                   CRYPTO_BUFFER *buf, int depth) {
+                                   int depth) {
   int aclass;
   int ret;
   const unsigned char *p;
@@ -565,7 +557,7 @@ static int asn1_template_noexp_d2i(ASN1_VALUE **val, const unsigned char **in,
       const unsigned char *q = p;
       skfield = NULL;
       if (!asn1_item_ex_d2i(&skfield, &p, len, ASN1_ITEM_ptr(tt->item),
-                            /*tag=*/-1, /*aclass=*/0, /*opt=*/0, buf, depth)) {
+                            /*tag=*/-1, /*aclass=*/0, /*opt=*/0, depth)) {
         ASN1_item_ex_free(&skfield, ASN1_ITEM_ptr(tt->item));
         OPENSSL_PUT_ERROR(ASN1, ASN1_R_NESTED_ASN1_ERROR);
         goto err;
@@ -579,7 +571,7 @@ static int asn1_template_noexp_d2i(ASN1_VALUE **val, const unsigned char **in,
   } else if (flags & ASN1_TFLG_IMPTAG) {
     // IMPLICIT tagging
     ret = asn1_item_ex_d2i(val, &p, len, ASN1_ITEM_ptr(tt->item), tt->tag,
-                           aclass, opt, buf, depth);
+                           aclass, opt, depth);
     if (!ret) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_NESTED_ASN1_ERROR);
       goto err;
@@ -589,7 +581,7 @@ static int asn1_template_noexp_d2i(ASN1_VALUE **val, const unsigned char **in,
   } else {
     // Nothing special
     ret = asn1_item_ex_d2i(val, &p, len, ASN1_ITEM_ptr(tt->item), /*tag=*/-1,
-                           /*aclass=*/0, opt, buf, depth);
+                           /*aclass=*/0, opt, depth);
     if (!ret) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_NESTED_ASN1_ERROR);
       goto err;
@@ -771,9 +763,9 @@ static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
     case V_ASN1_UTF8STRING:
       return asn1_parse_utf8_string(cbs, str, cbs_tag);
     case V_ASN1_UTCTIME:
-      // TODO(crbug.com/42290417): Once |X509|'s parser is written by hand, we
-      // won't have any known compatibility constraints forcing an invalid
-      // parser here. At that point, we can make the general case strict.
+      // TODO(crbug.com/42290221): Reject timezone offsets. We need to parse
+      // invalid timestamps in |X509| objects, but that parser no longer uses
+      // this code.
       return asn1_parse_utc_time(cbs, str, cbs_tag,
                                  /*allow_timezone_offset=*/1);
     case V_ASN1_GENERALIZEDTIME:
