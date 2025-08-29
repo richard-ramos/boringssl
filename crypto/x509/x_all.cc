@@ -29,7 +29,7 @@
 
 
 int X509_verify(X509 *x509, EVP_PKEY *pkey) {
-  if (X509_ALGOR_cmp(&x509->sig_alg, x509->cert_info->signature)) {
+  if (X509_ALGOR_cmp(&x509->sig_alg, x509->cert_info->tbs_sig_alg)) {
     OPENSSL_PUT_ERROR(X509, X509_R_SIGNATURE_ALGORITHM_MISMATCH);
     return 0;
   }
@@ -44,13 +44,13 @@ int X509_REQ_verify(X509_REQ *req, EVP_PKEY *pkey) {
 
 int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md) {
   asn1_encoding_clear(&x->cert_info->enc);
-  return (ASN1_item_sign(ASN1_ITEM_rptr(X509_CINF), x->cert_info->signature,
+  return (ASN1_item_sign(ASN1_ITEM_rptr(X509_CINF), x->cert_info->tbs_sig_alg,
                          &x->sig_alg, &x->signature, x->cert_info, pkey, md));
 }
 
 int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx) {
   asn1_encoding_clear(&x->cert_info->enc);
-  return ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_CINF), x->cert_info->signature,
+  return ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_CINF), x->cert_info->tbs_sig_alg,
                             &x->sig_alg, &x->signature, x->cert_info, ctx);
 }
 

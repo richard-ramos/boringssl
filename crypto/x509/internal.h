@@ -110,7 +110,7 @@ DECLARE_ASN1_ITEM(X509_EXTENSIONS)
 typedef struct {
   ASN1_INTEGER *version;  // [ 0 ] default of v1
   ASN1_INTEGER *serialNumber;
-  X509_ALGOR *signature;
+  X509_ALGOR *tbs_sig_alg;
   X509_NAME *issuer;
   X509_VAL *validity;
   X509_NAME *subject;

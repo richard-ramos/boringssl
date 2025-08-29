@@ -190,7 +190,7 @@ const STACK_OF(X509_EXTENSION) *X509_get0_extensions(const X509 *x) {
 }
 
 const X509_ALGOR *X509_get0_tbs_sigalg(const X509 *x) {
-  return x->cert_info->signature;
+  return x->cert_info->tbs_sig_alg;
 }
 
 X509_PUBKEY *X509_get_X509_PUBKEY(const X509 *x509) {

@@ -35,7 +35,7 @@ static CRYPTO_EX_DATA_CLASS g_ex_data_class = CRYPTO_EX_DATA_CLASS_INIT;
 ASN1_SEQUENCE_enc(X509_CINF, enc, 0) = {
     ASN1_EXP_OPT(X509_CINF, version, ASN1_INTEGER, 0),
     ASN1_SIMPLE(X509_CINF, serialNumber, ASN1_INTEGER),
-    ASN1_SIMPLE(X509_CINF, signature, X509_ALGOR),
+    ASN1_SIMPLE(X509_CINF, tbs_sig_alg, X509_ALGOR),
     ASN1_SIMPLE(X509_CINF, issuer, X509_NAME),
     ASN1_SIMPLE(X509_CINF, validity, X509_VAL),
     ASN1_SIMPLE(X509_CINF, subject, X509_NAME),
@@ -393,7 +393,7 @@ int i2d_X509_tbs(X509 *x509, unsigned char **outp) {
 
 int X509_set1_signature_algo(X509 *x509, const X509_ALGOR *algo) {
   return X509_ALGOR_copy(&x509->sig_alg, algo) &&
-         X509_ALGOR_copy(x509->cert_info->signature, algo);
+         X509_ALGOR_copy(x509->cert_info->tbs_sig_alg, algo);
 }
 
 int X509_set1_signature_value(X509 *x509, const uint8_t *sig, size_t sig_len) {
