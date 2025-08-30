@@ -52,7 +52,7 @@ DECLARE_ASN1_ITEM(X509_PUBKEY)
 
 struct X509_name_entry_st {
   ASN1_OBJECT *object;
-  ASN1_STRING *value;
+  ASN1_STRING value;
   int set;
 } /* X509_NAME_ENTRY */;
 
@@ -60,13 +60,19 @@ struct X509_name_entry_st {
 // (RFC 5280) and C type is |X509_NAME_ENTRY*|.
 DECLARE_ASN1_ITEM(X509_NAME_ENTRY)
 
-// we always keep X509_NAMEs in 2 forms.
+struct X509_NAME_CACHE {
+  // canon contains the DER-encoded canonicalized X.509 Name, not including the
+  // outermost TLV.
+  uint8_t *canon;
+  size_t canon_len;
+  // der contains the DER-encoded X.509 Name, including the outermost TLV.
+  uint8_t *der;
+  size_t der_len;
+};
+
 struct X509_name_st {
   STACK_OF(X509_NAME_ENTRY) *entries;
-  int modified;  // true if 'bytes' needs to be built
-  BUF_MEM *bytes;
-  unsigned char *canon_enc;
-  int canon_enclen;
+  mutable bssl::Atomic<X509_NAME_CACHE *> cache;
 } /* X509_NAME */;
 
 struct x509_attributes_st {
@@ -567,13 +573,19 @@ int X509_PURPOSE_get_trust(const X509_PURPOSE *xp);
 // TODO(https://crbug.com/boringssl/695): Remove this.
 int DIST_POINT_set_dpname(DIST_POINT_NAME *dpn, X509_NAME *iname);
 
+void x509_name_init(X509_NAME *name);
+void x509_name_cleanup(X509_NAME *name);
+
+// x509_parse_name parses a DER-encoded, X.509 Name from |cbs| and writes the
+// result to |*out|. It returns one on success and zero on error.
+int x509_parse_name(CBS *cbs, X509_NAME *out);
+
 // x509_marshal_name marshals |in| as a DER-encoded, X.509 Name and writes the
 // result to |out|. It returns one on success and zero on error.
-//
-// TODO(https://crbug.com/boringssl/407): This function should be const and
-// thread-safe but is currently neither in some cases, notably if |in| was
-// mutated.
-int x509_marshal_name(CBB *out, X509_NAME *in);
+int x509_marshal_name(CBB *out, const X509_NAME *in);
+
+const X509_NAME_CACHE *x509_name_get_cache(const X509_NAME *name);
+void x509_name_invalidate_cache(X509_NAME *name);
 
 void x509_algor_init(X509_ALGOR *alg);
 void x509_algor_cleanup(X509_ALGOR *alg);

@@ -194,6 +194,10 @@ int asn1_parse_any_as_string(CBS *cbs, ASN1_STRING *out);
 // result to |out|. It returns one on success and zeron on error.
 int asn1_marshal_any(CBB *out, const ASN1_TYPE *in);
 
+// asn1_marshal_any_string marshals |in| as a DER-encoded ASN.1 value and writes
+// the result to |out|. It returns one on success and zeron on error.
+int asn1_marshal_any_string(CBB *out, const ASN1_STRING *in);
+
 
 // Support structures for the template-based encoder.
 

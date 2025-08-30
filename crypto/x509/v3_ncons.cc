@@ -340,17 +340,19 @@ static int nc_match_single(GENERAL_NAME *gen, GENERAL_NAME *base) {
 // subset of the name.
 
 static int nc_dn(X509_NAME *nm, X509_NAME *base) {
-  // Ensure canonical encodings are up to date.
-  if (nm->modified && i2d_X509_NAME(nm, NULL) < 0) {
+  const X509_NAME_CACHE *nm_cache = x509_name_get_cache(nm);
+  if (nm_cache == nullptr) {
     return X509_V_ERR_OUT_OF_MEM;
   }
-  if (base->modified && i2d_X509_NAME(base, NULL) < 0) {
+  const X509_NAME_CACHE *base_cache = x509_name_get_cache(base);
+  if (base_cache == nullptr) {
     return X509_V_ERR_OUT_OF_MEM;
   }
-  if (base->canon_enclen > nm->canon_enclen) {
+  if (base_cache->canon_len > nm_cache->canon_len) {
     return X509_V_ERR_PERMITTED_VIOLATION;
   }
-  if (OPENSSL_memcmp(base->canon_enc, nm->canon_enc, base->canon_enclen)) {
+  if (OPENSSL_memcmp(base_cache->canon, nm_cache->canon,
+                     base_cache->canon_len)) {
     return X509_V_ERR_PERMITTED_VIOLATION;
   }
   return X509_V_OK;

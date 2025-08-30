@@ -1370,9 +1370,6 @@ OPENSSL_EXPORT X509_NAME *X509_NAME_dup(X509_NAME *name);
 // they are equal, one if |a| sorts after |b|, -1 if |b| sorts after |a|, and -2
 // on error.
 //
-// TODO(crbug.com/42290269): This function is const, but it is not always
-// thread-safe, notably if |name| was mutated.
-//
 // TODO(https://crbug.com/boringssl/355): The -2 return is very inconvenient to
 // pass to a sorting function. Can we make this infallible? In the meantime,
 // prefer to use this function only for equality checks rather than comparisons.

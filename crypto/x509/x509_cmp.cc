@@ -94,41 +94,39 @@ int X509_cmp(const X509 *a, const X509 *b) {
 }
 
 int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b) {
-  int ret;
-
-  // Ensure canonical encoding is present and up to date
-
-  if (!a->canon_enc || a->modified) {
-    ret = i2d_X509_NAME((X509_NAME *)a, NULL);
-    if (ret < 0) {
-      return -2;
-    }
+  const X509_NAME_CACHE *a_cache = x509_name_get_cache(a);
+  if (a_cache == nullptr) {
+    return -2;
   }
-
-  if (!b->canon_enc || b->modified) {
-    ret = i2d_X509_NAME((X509_NAME *)b, NULL);
-    if (ret < 0) {
-      return -2;
-    }
+  const X509_NAME_CACHE *b_cache = x509_name_get_cache(b);
+  if (b_cache == nullptr) {
+    return -2;
   }
-
-  ret = a->canon_enclen - b->canon_enclen;
-
-  if (ret) {
-    return ret;
+  if (a_cache->canon_len < b_cache->canon_len) {
+    return -1;
   }
-
-  return OPENSSL_memcmp(a->canon_enc, b->canon_enc, a->canon_enclen);
+  if (a_cache->canon_len > b_cache->canon_len) {
+    return 1;
+  }
+  int ret = OPENSSL_memcmp(a_cache->canon, b_cache->canon, a_cache->canon_len);
+  // Canonicalize the return value so it is even possible to distinguish the
+  // error case from a < b, though ideally we would not have an error case.
+  if (ret < 0) {
+    return -1;
+  }
+  if (ret > 0) {
+    return 1;
+  }
+  return 0;
 }
 
 uint32_t X509_NAME_hash(X509_NAME *x) {
-  // Make sure the X509_NAME structure contains a valid cached encoding.
-  if (i2d_X509_NAME(x, NULL) < 0) {
+  const X509_NAME_CACHE *cache = x509_name_get_cache(x);
+  if (cache == nullptr) {
     return 0;
   }
-
   uint8_t md[SHA_DIGEST_LENGTH];
-  SHA1(x->canon_enc, x->canon_enclen, md);
+  SHA1(cache->canon, cache->canon_len, md);
   return CRYPTO_load_u32_le(md);
 }
 
@@ -136,13 +134,12 @@ uint32_t X509_NAME_hash(X509_NAME *x) {
 // this is reasonably efficient.
 
 uint32_t X509_NAME_hash_old(X509_NAME *x) {
-  // Make sure the X509_NAME structure contains a valid cached encoding.
-  if (i2d_X509_NAME(x, NULL) < 0) {
+  const X509_NAME_CACHE *cache = x509_name_get_cache(x);
+  if (cache == nullptr) {
     return 0;
   }
-
-  uint8_t md[SHA_DIGEST_LENGTH];
-  MD5((const uint8_t *)x->bytes->data, x->bytes->length, md);
+  uint8_t md[MD5_DIGEST_LENGTH];
+  MD5(cache->der, cache->der_len, md);
   return CRYPTO_load_u32_le(md);
 }
 
