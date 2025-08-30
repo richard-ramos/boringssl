@@ -5186,6 +5186,16 @@ TEST(X509Test, Names) {
   }
 }
 
+// Adding an invalid entry to an |X509_NAME| should not be possible.
+TEST(X509Test, AddInvalidEntryToName) {
+  bssl::UniquePtr<X509_NAME> name(X509_NAME_new());
+  ASSERT_TRUE(name);
+  bssl::UniquePtr<X509_NAME_ENTRY> entry(X509_NAME_ENTRY_new());
+  ASSERT_TRUE(entry);
+  EXPECT_FALSE(
+      X509_NAME_add_entry(name.get(), entry.get(), /*loc=*/-1, /*set=*/0));
+}
+
 TEST(X509Test, AddDuplicates) {
   bssl::UniquePtr<X509_STORE> store(X509_STORE_new());
   bssl::UniquePtr<X509> a(CertFromPEM(kCrossSigningRootPEM));
