@@ -4535,6 +4535,9 @@ OPENSSL_EXPORT int ASN1_item_verify(const ASN1_ITEM *it,
 // |md|, or |pkey|'s default if NULL. Other signing parameters use |pkey|'s
 // defaults. To customize them, use |ASN1_item_sign_ctx|.
 //
+// |algor1| and |algor2| may point into part of |asn| and will be updated before
+// |asn| is serialized.
+//
 // WARNING: |data| must be a pointer with the same type as |it|'s corresponding
 // C type. Using the wrong type is a potentially exploitable memory error.
 OPENSSL_EXPORT int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1,
@@ -4549,6 +4552,9 @@ OPENSSL_EXPORT int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1,
 //
 // On success or failure, this function mutates |ctx| and resets it to the empty
 // state. Caller should not rely on its contents after the function returns.
+//
+// |algor1| and |algor2| may point into part of |asn| and will be updated before
+// |asn| is serialized.
 //
 // WARNING: |data| must be a pointer with the same type as |it|'s corresponding
 // C type. Using the wrong type is a potentially exploitable memory error.
