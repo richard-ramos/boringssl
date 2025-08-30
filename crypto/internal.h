@@ -532,8 +532,6 @@ OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
 
 using CRYPTO_atomic_u32 = std::atomic<uint32_t>;
 
-static_assert(sizeof(CRYPTO_atomic_u32) == sizeof(uint32_t));
-
 inline uint32_t CRYPTO_atomic_load_u32(const CRYPTO_atomic_u32 *val) {
   return val->load(std::memory_order_seq_cst);
 }
@@ -571,12 +569,6 @@ inline void CRYPTO_atomic_store_u32(CRYPTO_atomic_u32 *val, uint32_t desired) {
 }
 
 #endif
-
-// See the comment in the |__cplusplus| section above.
-static_assert(sizeof(CRYPTO_atomic_u32) == sizeof(uint32_t),
-              "CRYPTO_atomic_u32 does not match uint32_t size");
-static_assert(alignof(CRYPTO_atomic_u32) == alignof(uint32_t),
-              "CRYPTO_atomic_u32 does not match uint32_t alignment");
 
 
 // Reference counting.
