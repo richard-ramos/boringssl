@@ -38,6 +38,7 @@
 #include <openssl/x509.h>
 
 #include "../internal.h"
+#include "../test/der_trailing_data.h"
 #include "../test/file_util.h"
 #include "../test/test_data.h"
 #include "../test/test_util.h"
@@ -8782,6 +8783,57 @@ TEST(X509Test, VerifyUnusualTBSCert) {
     ASSERT_TRUE(cert);
     EXPECT_TRUE(X509_verify(cert.get(), key.get()));
   }
+}
+
+TEST(X509Test, TrailingDataX509) {
+  bssl::UniquePtr<X509> cert(CertFromPEM(kLeafPEM));
+  uint8_t *der = nullptr;
+  int len = i2d_X509(cert.get(), &der);
+  ASSERT_GT(len, 0);
+  bssl::UniquePtr<uint8_t> free_der(der);
+
+  bool ok = TestDERTrailingData(
+      bssl::Span(der, len), [](bssl::Span<const uint8_t> in, size_t n) {
+        SCOPED_TRACE(n);
+        const uint8_t *p = in.data();
+        bssl::UniquePtr<X509> parsed(d2i_X509(nullptr, &p, in.size()));
+        EXPECT_FALSE(parsed);
+      });
+  EXPECT_TRUE(ok);
+}
+
+TEST(X509Test, TrailingDataCRL) {
+  bssl::UniquePtr<X509_CRL> crl(CRLFromPEM(kRevokedCRL));
+  uint8_t *der = nullptr;
+  int len = i2d_X509_CRL(crl.get(), &der);
+  ASSERT_GT(len, 0);
+  bssl::UniquePtr<uint8_t> free_der(der);
+
+  bool ok = TestDERTrailingData(
+      bssl::Span(der, len), [](bssl::Span<const uint8_t> in, size_t n) {
+        SCOPED_TRACE(n);
+        const uint8_t *p = in.data();
+        bssl::UniquePtr<X509_CRL> parsed(d2i_X509_CRL(nullptr, &p, in.size()));
+        EXPECT_FALSE(parsed);
+      });
+  EXPECT_TRUE(ok);
+}
+
+TEST(X509Test, TrailingDataCSR) {
+  bssl::UniquePtr<X509_REQ> csr(CSRFromPEM(kTestCSR));
+  uint8_t *der = nullptr;
+  int len = i2d_X509_REQ(csr.get(), &der);
+  ASSERT_GT(len, 0);
+  bssl::UniquePtr<uint8_t> free_der(der);
+
+  bool ok = TestDERTrailingData(
+      bssl::Span(der, len), [](bssl::Span<const uint8_t> in, size_t n) {
+        SCOPED_TRACE(n);
+        const uint8_t *p = in.data();
+        bssl::UniquePtr<X509_REQ> parsed(d2i_X509_REQ(nullptr, &p, in.size()));
+        EXPECT_FALSE(parsed);
+      });
+  EXPECT_TRUE(ok);
 }
 
 }  // namespace

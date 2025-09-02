@@ -2814,6 +2814,7 @@ boringssl_ssl_test_sources := \
 
 boringssl_test_support_sources := \
   crypto/test/abi_test.cc \
+  crypto/test/der_trailing_data.cc \
   crypto/test/file_test.cc \
   crypto/test/file_test_gtest.cc \
   crypto/test/file_util.cc \
@@ -2823,6 +2824,7 @@ boringssl_test_support_sources := \
 
 boringssl_test_support_internal_headers := \
   crypto/test/abi_test.h \
+  crypto/test/der_trailing_data.h \
   crypto/test/file_test.h \
   crypto/test/file_util.h \
   crypto/test/gtest_main.h \

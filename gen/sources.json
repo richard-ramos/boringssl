@@ -2828,6 +2828,7 @@
   "test_support": {
     "srcs": [
       "crypto/test/abi_test.cc",
+      "crypto/test/der_trailing_data.cc",
       "crypto/test/file_test.cc",
       "crypto/test/file_test_gtest.cc",
       "crypto/test/file_util.cc",
@@ -2837,6 +2838,7 @@
     ],
     "internal_hdrs": [
       "crypto/test/abi_test.h",
+      "crypto/test/der_trailing_data.h",
       "crypto/test/file_test.h",
       "crypto/test/file_util.h",
       "crypto/test/gtest_main.h",

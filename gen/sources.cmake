@@ -2906,6 +2906,7 @@ set(
   TEST_SUPPORT_SOURCES
 
   crypto/test/abi_test.cc
+  crypto/test/der_trailing_data.cc
   crypto/test/file_test.cc
   crypto/test/file_test_gtest.cc
   crypto/test/file_util.cc
@@ -2918,6 +2919,7 @@ set(
   TEST_SUPPORT_INTERNAL_HEADERS
 
   crypto/test/abi_test.h
+  crypto/test/der_trailing_data.h
   crypto/test/file_test.h
   crypto/test/file_util.h
   crypto/test/gtest_main.h
