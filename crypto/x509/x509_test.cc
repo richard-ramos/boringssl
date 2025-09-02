@@ -2144,6 +2144,23 @@ static bssl::UniquePtr<X509> ReencodeCertificate(X509 *cert) {
   return bssl::UniquePtr<X509>(d2i_X509(nullptr, &inp, len));
 }
 
+static bssl::UniquePtr<X509> ReencodeCertificateWithAlgorithms(
+    X509 *cert, bssl::Span<const EVP_PKEY_ALG *const> algs) {
+  uint8_t *der = nullptr;
+  int len = i2d_X509(cert, &der);
+  bssl::UniquePtr<uint8_t> free_der(der);
+  if (len <= 0) {
+    return nullptr;
+  }
+
+  bssl::UniquePtr<CRYPTO_BUFFER> buf(CRYPTO_BUFFER_new(der, len, nullptr));
+  if (buf == nullptr) {
+    return nullptr;
+  }
+  return bssl::UniquePtr<X509>(
+      X509_parse_with_algorithms(buf.get(), algs.data(), algs.size()));
+}
+
 static bssl::UniquePtr<X509_CRL> ReencodeCRL(X509_CRL *crl) {
   uint8_t *der = nullptr;
   int len = i2d_X509_CRL(crl, &der);
@@ -8935,8 +8952,40 @@ TEST(X509Test, NonDefaultKeyType) {
   EXPECT_FALSE(X509_get0_pubkey(reparsed.get()));
   EXPECT_EQ(X509_check_private_key(reparsed.get(), pkey.get()), 0);
 
-  // TODO(crbug.com/42290364): Add an API to parse certificates with a custom
-  // algorithm list. That should be able to extract the key.
+  // Reparsing with RSA-PSS enabled does enable it.
+  bssl::UniquePtr<X509> cert_with_key =
+      ReencodeCertificateWithAlgorithms(cert.get(), bssl::Span(&alg, 1));
+  ASSERT_TRUE(cert_with_key);
+  // The public key can be extracted from |cert|.
+  const EVP_PKEY *cert_pkey = X509_get0_pubkey(cert_with_key.get());
+  ASSERT_TRUE(cert_pkey);
+  EXPECT_EQ(EVP_PKEY_cmp(pkey.get(), cert_pkey), 1);
+  // |X509_check_private_key| should work.
+  EXPECT_EQ(X509_check_private_key(cert_with_key.get(), pkey.get()), 1);
+
+  // Verifying a certificate chain using |EVP_PKEY_RSA_PSS| should work as long
+  // as all CA certificates have the key available. The end-entity key is not
+  // checked.
+  bssl::UniquePtr<X509> root =
+      MakeTestCert("Test Issuer", "Test Issuer", pkey.get(), /*is_ca=*/true);
+  ASSERT_TRUE(root);
+  ASSERT_TRUE(X509_sign(root.get(), pkey.get(), EVP_sha256()));
+  root = ReencodeCertificate(root.get());
+  ASSERT_TRUE(root);
+  bssl::UniquePtr<X509> root_with_key =
+      ReencodeCertificateWithAlgorithms(root.get(), bssl::Span(&alg, 1));
+  ASSERT_TRUE(root_with_key);
+  EXPECT_EQ(X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY,
+            Verify(cert.get(), /*roots=*/{root.get()},
+                   /*intermediates=*/{}, /*crls=*/{}));
+  EXPECT_EQ(X509_V_OK, Verify(cert.get(), /*roots=*/{root_with_key.get()},
+                              /*intermediates=*/{}, /*crls=*/{}));
+  EXPECT_EQ(X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY,
+            Verify(cert_with_key.get(), /*roots=*/{root.get()},
+                   /*intermediates=*/{}, /*crls=*/{}));
+  EXPECT_EQ(X509_V_OK,
+            Verify(cert_with_key.get(), /*roots=*/{root_with_key.get()},
+                   /*intermediates=*/{}, /*crls=*/{}));
 }
 
 }  // namespace

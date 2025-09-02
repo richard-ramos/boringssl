@@ -124,8 +124,9 @@ static int parse_name(CBS *cbs, X509_NAME **out) {
   return 1;
 }
 
-
-X509 *X509_parse_from_buffer(CRYPTO_BUFFER *buf) {
+X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
+                                 const EVP_PKEY_ALG *const *algs,
+                                 size_t num_algs) {
   bssl::UniquePtr<X509> ret(x509_new_null());
   if (ret == nullptr) {
     return nullptr;
@@ -188,9 +189,7 @@ X509 *X509_parse_from_buffer(CRYPTO_BUFFER *buf) {
                        /*allow_utc_timezone_offset=*/1) ||
       CBS_len(&validity) != 0 ||  //
       !parse_name(&tbs, &ret->subject) ||
-      // TODO(crbug.com/42290364): Expose an API to use different algorithms.
-      !x509_parse_public_key(&tbs, &ret->key,
-                             bssl::GetDefaultEVPAlgorithms())) {
+      !x509_parse_public_key(&tbs, &ret->key, bssl::Span(algs, num_algs))) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
     return nullptr;
   }
@@ -236,6 +235,11 @@ X509 *X509_parse_from_buffer(CRYPTO_BUFFER *buf) {
   }
 
   return ret.release();
+}
+
+X509 *X509_parse_from_buffer(CRYPTO_BUFFER *buf) {
+  auto algs = bssl::GetDefaultEVPAlgorithms();
+  return X509_parse_with_algorithms(buf, algs.data(), algs.size());
 }
 
 static bssl::UniquePtr<X509> x509_parse(CBS *cbs) {
