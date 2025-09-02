@@ -1031,6 +1031,14 @@ set(
   crypto/x509/test/trailing_data_leaf_name_constraints.pem
   crypto/x509/test/trailing_data_leaf_subject_alt_name.pem
   crypto/x509/test/trailing_data_leaf_subject_key_identifier.pem
+  crypto/x509/test/unusual_tbs_empty_extension_not_omitted.pem
+  crypto/x509/test/unusual_tbs_key.pem
+  crypto/x509/test/unusual_tbs_null_sigalg_param.pem
+  crypto/x509/test/unusual_tbs_uid_both.pem
+  crypto/x509/test/unusual_tbs_uid_issuer.pem
+  crypto/x509/test/unusual_tbs_uid_subject.pem
+  crypto/x509/test/unusual_tbs_v1_not_omitted.pem
+  crypto/x509/test/unusual_tbs_wrong_attribute_order.pem
   third_party/wycheproof_testvectors/aes_cbc_pkcs5_test.txt
   third_party/wycheproof_testvectors/aes_cmac_test.txt
   third_party/wycheproof_testvectors/aes_eax_test.txt

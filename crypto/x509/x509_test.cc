@@ -8735,4 +8735,53 @@ TEST(X509Test, DeleteLastExtension) {
   EXPECT_EQ(X509_REVOKED_get0_extensions(rev.get()), nullptr);
 }
 
+// Test that, signatures over unusual TBSCertificates are verified correctly.
+// This tests that encoding is correctly round-tripped through the parser to the
+// verifier.
+//
+// In principle, this should never happen because a DER parser will only accept
+// the canonical encoding of an object. However, it is possible for encoding to
+// not round-trip if we accept any BER inputs, or our in-memory representation
+// does not capture the full range of abstract TBSCertificate values.
+//
+// |X509| objects cache the encoded TBSCertificate, so all encoding variations
+// should be captured. This test tries to exercise the cache's effects on
+// signature verification. In reality, the cache is barely load-bearing. We now
+// reject most non-DER inputs, and |X509_NAME| also saves its encoding. Still,
+// the test ensures this remains the case.
+TEST(X509Test, VerifyUnusualTBSCert) {
+  bssl::UniquePtr<EVP_PKEY> key =
+      PrivateKeyFromPEM(GetTestData("crypto/x509/test/unusual_tbs_key.pem"));
+  ASSERT_TRUE(key);
+  // The TBSCertificates were made with https://github.com/google/der-ascii.
+  // crypto/x509/test/make_unusual_tbs.go then filled in valid signatures.
+  const char *kPaths[] = {
+      // Empty extension instead of omitting the entire field.
+      // TODO(crbug.com/442221114): The parser should reject this.
+      "crypto/x509/test/unusual_tbs_empty_extension_not_omitted.pem",
+      // ecdsa-with-SHA256 AlgorithmIdentifier parameters are NULL instead of
+      // omitted. We accept this due to b/167375496.
+      "crypto/x509/test/unusual_tbs_null_sigalg_param.pem",
+      // Deprecated subject and issuer unique IDs are present. This is valid,
+      // but
+      // rarely exercised.
+      "crypto/x509/test/unusual_tbs_uid_both.pem",
+      "crypto/x509/test/unusual_tbs_uid_issuer.pem",
+      "crypto/x509/test/unusual_tbs_uid_subject.pem",
+      // Within a RelativeDistinguishedName, attributes should be sorted in
+      // canonical SET OF order. These are inverted.
+      // TODO(crbug.com/42290219): The parser should reject this.
+      "crypto/x509/test/unusual_tbs_wrong_attribute_order.pem",
+      // A v1 version is explicit encoded instead of omitted as DEFAULT.
+      // TODO(crbug.com/42290225): The parser should reject this.
+      "crypto/x509/test/unusual_tbs_v1_not_omitted.pem",
+  };
+  for (const char *path : kPaths) {
+    SCOPED_TRACE(path);
+    bssl::UniquePtr<X509> cert = CertFromPEM(GetTestData(path));
+    ASSERT_TRUE(cert);
+    EXPECT_TRUE(X509_verify(cert.get(), key.get()));
+  }
+}
+
 }  // namespace
