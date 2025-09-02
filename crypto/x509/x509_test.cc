@@ -8894,4 +8894,49 @@ TEST(X509Test, TrailingDataCSR) {
   EXPECT_TRUE(ok);
 }
 
+TEST(X509Test, NonDefaultKeyType) {
+  // Parse an RSA-PSS key. This key type is not enabled by default.
+  std::string pkcs8_str =
+      GetTestData("crypto/x509/test/rsa_pss_sha256_key.pk8");
+  auto pkcs8 = bssl::StringAsBytes(pkcs8_str);
+  const EVP_PKEY_ALG *const alg = EVP_pkey_rsa_pss_sha256();
+  bssl::UniquePtr<EVP_PKEY> pkey(
+      EVP_PKEY_from_private_key_info(pkcs8.data(), pkcs8.size(), &alg, 1));
+  ASSERT_TRUE(pkey);
+  EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_RSA_PSS);
+
+  // It should be possible to use |pkey| to make a certificate.
+  bssl::UniquePtr<X509> cert =
+      MakeTestCert("Test Issuer", "Test Subject", pkey.get(), /*is_ca=*/false);
+  ASSERT_TRUE(cert);
+  ASSERT_TRUE(X509_sign(cert.get(), pkey.get(), EVP_sha256()));
+
+  // Verify the signature with |pkey|.
+  EXPECT_TRUE(X509_verify(cert.get(), pkey.get()));
+
+#if 1
+  // TODO(crbug.com/42290364): This does not currently work, but it should.
+  EXPECT_FALSE(X509_get0_pubkey(cert.get()));
+#else
+  // The public key can be extracted from |cert|.
+  const EVP_PKEY *cert_pkey = X509_get0_pubkey(cert.get());
+  ASSERT_TRUE(cert_pkey);
+  EXPECT_EQ(EVP_PKEY_cmp(pkey.get(), cert_pkey), 1);
+  // |X509_check_private_key| should work.
+  EXPECT_EQ(X509_check_private_key(cert.get(), pkey.get()), 1);
+#endif
+
+  // The resulting certificate can be serialized and re-parsed.
+  bssl::UniquePtr<X509> reparsed = ReencodeCertificate(cert.get());
+  ASSERT_TRUE(reparsed);
+
+  // RSA-PSS is off by default, so parsing certificates anew with |d2i_X509|
+  // will not enable off-by-default algorithms.
+  EXPECT_FALSE(X509_get0_pubkey(reparsed.get()));
+  EXPECT_EQ(X509_check_private_key(reparsed.get(), pkey.get()), 0);
+
+  // TODO(crbug.com/42290364): Add an API to parse certificates with a custom
+  // algorithm list. That should be able to extract the key.
+}
+
 }  // namespace

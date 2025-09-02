@@ -994,6 +994,7 @@ crypto_test_data = [
     "crypto/x509/test/pss_sha256_wrong_trailer.pem",
     "crypto/x509/test/pss_sha384.pem",
     "crypto/x509/test/pss_sha512.pem",
+    "crypto/x509/test/rsa_pss_sha256_key.pk8",
     "crypto/x509/test/some_names1.pem",
     "crypto/x509/test/some_names2.pem",
     "crypto/x509/test/some_names3.pem",

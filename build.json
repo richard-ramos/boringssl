@@ -947,6 +947,7 @@
             "crypto/slhdsa/slhdsa_siggen.txt",
             "crypto/slhdsa/slhdsa_sigver.txt",
             "crypto/x509/test/*.pem",
+            "crypto/x509/test/*.pk8",
             "third_party/wycheproof_testvectors/*.txt"
         ]
     },
