@@ -2197,7 +2197,7 @@ TEST(X509Test, RSASign) {
   ASSERT_TRUE(SignatureRoundTrips(md_ctx.get(), pkey.get()));
 
   // RSA-PSS with salt length matching hash length should work when passing in
-  // -1 or the value explicitly.
+  // |RSA_PSS_SALTLEN_DIGEST| or the value explicitly.
   md_ctx.Reset();
   EVP_PKEY_CTX *pkey_ctx;
   ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), NULL,
@@ -2540,6 +2540,75 @@ TEST(X509Test, SignCSR) {
       ASSERT_TRUE(copy_pubkey);
       EXPECT_EQ(1, EVP_PKEY_cmp(pkey.get(), copy_pubkey.get()));
     }
+  }
+}
+
+// The |*_sign_ctx| APIs implicitly call |EVP_MD_CTX_cleanup| on return, on both
+// success and failure. Some callers rely on this to avoid a memory leak. These
+// tests rely on ASan to detect leaks. Test failure by using unsupported RSA-PSS
+// parameters.
+TEST(X509Test, SignImplicitCleanup) {
+  bssl::UniquePtr<EVP_PKEY> pkey(PrivateKeyFromPEM(kRSAKey));
+  ASSERT_TRUE(pkey);
+
+  bssl::UniquePtr<X509> cert = CertFromPEM(kLeafPEM);
+  ASSERT_TRUE(cert);
+  {
+    EVP_MD_CTX ctx;
+    EVP_MD_CTX_init(&ctx);
+    ASSERT_TRUE(
+        EVP_DigestSignInit(&ctx, nullptr, EVP_sha256(), nullptr, pkey.get()));
+    EXPECT_TRUE(X509_sign_ctx(cert.get(), &ctx));
+  }
+  {
+    EVP_MD_CTX ctx;
+    EVP_MD_CTX_init(&ctx);
+    EVP_PKEY_CTX *pkey_ctx;
+    ASSERT_TRUE(
+        EVP_DigestSignInit(&ctx, &pkey_ctx, EVP_sha256(), nullptr, pkey.get()));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, 33));
+    EXPECT_FALSE(X509_sign_ctx(cert.get(), &ctx));
+  }
+
+  bssl::UniquePtr<X509_CRL> crl = CRLFromPEM(kBasicCRL);
+  ASSERT_TRUE(crl);
+  {
+    EVP_MD_CTX ctx;
+    EVP_MD_CTX_init(&ctx);
+    ASSERT_TRUE(
+        EVP_DigestSignInit(&ctx, nullptr, EVP_sha256(), nullptr, pkey.get()));
+    EXPECT_TRUE(X509_CRL_sign_ctx(crl.get(), &ctx));
+  }
+  {
+    EVP_MD_CTX ctx;
+    EVP_MD_CTX_init(&ctx);
+    EVP_PKEY_CTX *pkey_ctx;
+    ASSERT_TRUE(
+        EVP_DigestSignInit(&ctx, &pkey_ctx, EVP_sha256(), nullptr, pkey.get()));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, 33));
+    EXPECT_FALSE(X509_CRL_sign_ctx(crl.get(), &ctx));
+  }
+
+  bssl::UniquePtr<X509_REQ> csr = CSRFromPEM(kTestCSR);
+  ASSERT_TRUE(csr);
+  {
+    EVP_MD_CTX ctx;
+    EVP_MD_CTX_init(&ctx);
+    ASSERT_TRUE(
+        EVP_DigestSignInit(&ctx, nullptr, EVP_sha256(), nullptr, pkey.get()));
+    EXPECT_TRUE(X509_REQ_sign_ctx(csr.get(), &ctx));
+  }
+  {
+    EVP_MD_CTX ctx;
+    EVP_MD_CTX_init(&ctx);
+    EVP_PKEY_CTX *pkey_ctx;
+    ASSERT_TRUE(
+        EVP_DigestSignInit(&ctx, &pkey_ctx, EVP_sha256(), nullptr, pkey.get()));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, 33));
+    EXPECT_FALSE(X509_REQ_sign_ctx(csr.get(), &ctx));
   }
 }
 
