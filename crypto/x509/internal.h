@@ -112,14 +112,10 @@ struct x509_st {
   uint8_t version;  // One of the |X509_VERSION_*| constants.
   ASN1_INTEGER serialNumber;
   X509_ALGOR tbs_sig_alg;
-  // TODO(crbug.com/42290417): When |X509_NAME| no longer uses the macro system,
-  // try to embed this struct.
-  X509_NAME *issuer;
+  X509_NAME issuer;
   ASN1_TIME notBefore;
   ASN1_TIME notAfter;
-  // TODO(crbug.com/42290417): When |X509_NAME| no longer uses the macro system,
-  // try to embed this struct.
-  X509_NAME *subject;
+  X509_NAME subject;
   X509_PUBKEY key;
   ASN1_BIT_STRING *issuerUID;            // [ 1 ] optional in v2
   ASN1_BIT_STRING *subjectUID;           // [ 2 ] optional in v2
@@ -581,6 +577,8 @@ int x509_marshal_name(CBB *out, const X509_NAME *in);
 
 const X509_NAME_CACHE *x509_name_get_cache(const X509_NAME *name);
 void x509_name_invalidate_cache(X509_NAME *name);
+
+int x509_name_copy(X509_NAME *dst, const X509_NAME *src);
 
 void x509_algor_init(X509_ALGOR *alg);
 void x509_algor_cleanup(X509_ALGOR *alg);

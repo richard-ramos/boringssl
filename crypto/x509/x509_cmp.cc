@@ -29,11 +29,11 @@
 
 
 int X509_issuer_name_cmp(const X509 *a, const X509 *b) {
-  return X509_NAME_cmp(a->issuer, b->issuer);
+  return X509_NAME_cmp(&a->issuer, &b->issuer);
 }
 
 int X509_subject_name_cmp(const X509 *a, const X509 *b) {
-  return X509_NAME_cmp(a->subject, b->subject);
+  return X509_NAME_cmp(&a->subject, &b->subject);
 }
 
 int X509_CRL_cmp(const X509_CRL *a, const X509_CRL *b) {
@@ -46,20 +46,20 @@ int X509_CRL_match(const X509_CRL *a, const X509_CRL *b) {
 
 X509_NAME *X509_get_issuer_name(const X509 *a) {
   // This function is not const-correct for OpenSSL compatibility.
-  return a->issuer;
+  return const_cast<X509_NAME*>(&a->issuer);
 }
 
 uint32_t X509_issuer_name_hash(const X509 *x) {
-  return X509_NAME_hash(x->issuer);
+  return X509_NAME_hash(&x->issuer);
 }
 
 uint32_t X509_issuer_name_hash_old(const X509 *x) {
-  return X509_NAME_hash_old(x->issuer);
+  return X509_NAME_hash_old(&x->issuer);
 }
 
 X509_NAME *X509_get_subject_name(const X509 *a) {
   // This function is not const-correct for OpenSSL compatibility.
-  return a->subject;
+  return const_cast<X509_NAME*>(&a->subject);
 }
 
 ASN1_INTEGER *X509_get_serialNumber(X509 *a) { return &a->serialNumber; }
@@ -69,11 +69,11 @@ const ASN1_INTEGER *X509_get0_serialNumber(const X509 *x509) {
 }
 
 uint32_t X509_subject_name_hash(const X509 *x) {
-  return X509_NAME_hash(x->subject);
+  return X509_NAME_hash(&x->subject);
 }
 
 uint32_t X509_subject_name_hash_old(const X509 *x) {
-  return X509_NAME_hash_old(x->subject);
+  return X509_NAME_hash_old(&x->subject);
 }
 
 // Compare two certificates: they must be identical for this to work. NB:

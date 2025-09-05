@@ -263,18 +263,25 @@ int x509_marshal_name(CBB *out, const X509_NAME *in) {
   return CBB_add_bytes(out, cache->der, cache->der_len);
 }
 
-X509_NAME *X509_NAME_dup(const X509_NAME *name) {
-  const X509_NAME_CACHE *cache = x509_name_get_cache(name);
+int x509_name_copy(X509_NAME *dst, const X509_NAME *src) {
+  const X509_NAME_CACHE *cache = x509_name_get_cache(src);
   if (cache == nullptr) {
-    return nullptr;
+    return 0;
   }
   CBS cbs;
   CBS_init(&cbs, cache->der, cache->der_len);
-  bssl::UniquePtr<X509_NAME> copy(X509_NAME_new());
-  if (copy == nullptr || !x509_parse_name(&cbs, copy.get())) {
-    return nullptr;
+  if (!x509_parse_name(&cbs, dst)) {
+    return 0;
   }
   assert(CBS_len(&cbs) == 0);
+  return 1;
+}
+
+X509_NAME *X509_NAME_dup(const X509_NAME *name) {
+  bssl::UniquePtr<X509_NAME> copy(X509_NAME_new());
+  if (copy == nullptr || !x509_name_copy(copy.get(), name)) {
+    return nullptr;
+  }
   return copy.release();
 }
 
