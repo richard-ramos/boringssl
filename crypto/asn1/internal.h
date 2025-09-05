@@ -314,8 +314,8 @@ typedef struct ASN1_EXTERN_FUNCS_st {
   ASN1_ex_i2d *asn1_ex_i2d;
 } ASN1_EXTERN_FUNCS;
 
-#define IMPLEMENT_EXTERN_ASN1_SIMPLE(name, new_func, free_func, parse_func,    \
-                                     i2d_func)                                 \
+#define IMPLEMENT_EXTERN_ASN1_SIMPLE(name, new_func, free_func, tag,           \
+                                     parse_func, i2d_func)                     \
   static int name##_new_cb(ASN1_VALUE **pval, const ASN1_ITEM *it) {           \
     *pval = (ASN1_VALUE *)new_func();                                          \
     return *pval != nullptr;                                                   \
@@ -328,7 +328,7 @@ typedef struct ASN1_EXTERN_FUNCS_st {
                                                                                \
   static int name##_parse_cb(ASN1_VALUE **pval, CBS *cbs, const ASN1_ITEM *it, \
                              int opt) {                                        \
-    if (opt && !CBS_peek_asn1_tag(cbs, CBS_ASN1_SEQUENCE)) {                   \
+    if (opt && !CBS_peek_asn1_tag(cbs, (tag))) {                               \
       return 1;                                                                \
     }                                                                          \
                                                                                \
