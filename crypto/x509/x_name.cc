@@ -263,7 +263,7 @@ int x509_marshal_name(CBB *out, const X509_NAME *in) {
   return CBB_add_bytes(out, cache->der, cache->der_len);
 }
 
-X509_NAME *X509_NAME_dup(X509_NAME *name) {
+X509_NAME *X509_NAME_dup(const X509_NAME *name) {
   const X509_NAME_CACHE *cache = x509_name_get_cache(name);
   if (cache == nullptr) {
     return nullptr;
@@ -289,7 +289,7 @@ X509_NAME *d2i_X509_NAME(X509_NAME **out, const uint8_t **inp, long len) {
       });
 }
 
-int i2d_X509_NAME(X509_NAME *in, uint8_t **outp) {
+int i2d_X509_NAME(const X509_NAME *in, uint8_t **outp) {
   const X509_NAME_CACHE *cache = x509_name_get_cache(in);
   if (cache == nullptr) {
     return -1;
@@ -384,18 +384,19 @@ static int asn1_marshal_string_canon(CBB *cbb, const ASN1_STRING *in) {
   return CBB_flush(cbb);
 }
 
-int X509_NAME_set(X509_NAME **xn, X509_NAME *name) {
-  if ((name = X509_NAME_dup(name)) == NULL) {
+int X509_NAME_set(X509_NAME **xn, const X509_NAME *name) {
+  bssl::UniquePtr<X509_NAME> copy(X509_NAME_dup(name));
+  if (copy == nullptr) {
     return 0;
   }
   X509_NAME_free(*xn);
-  *xn = name;
+  *xn = copy.release();
   return 1;
 }
 
 int X509_NAME_ENTRY_set(const X509_NAME_ENTRY *ne) { return ne->set; }
 
-int X509_NAME_get0_der(X509_NAME *nm, const unsigned char **out_der,
+int X509_NAME_get0_der(const X509_NAME *nm, const unsigned char **out_der,
                        size_t *out_der_len) {
   const X509_NAME_CACHE *cache = x509_name_get_cache(nm);
   if (cache == nullptr) {

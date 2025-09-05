@@ -23,17 +23,18 @@
 
 
 static int X509_OBJECT_idx_by_subject(STACK_OF(X509_OBJECT) *h, int type,
-                                      X509_NAME *name);
+                                      const X509_NAME *name);
 static X509_OBJECT *X509_OBJECT_retrieve_by_subject(STACK_OF(X509_OBJECT) *h,
-                                                    int type, X509_NAME *name);
+                                                    int type,
+                                                    const X509_NAME *name);
 static X509_OBJECT *X509_OBJECT_retrieve_match(STACK_OF(X509_OBJECT) *h,
                                                X509_OBJECT *x);
 static int X509_OBJECT_up_ref_count(X509_OBJECT *a);
 
 static X509_LOOKUP *X509_LOOKUP_new(const X509_LOOKUP_METHOD *method,
                                     X509_STORE *store);
-static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type, X509_NAME *name,
-                                  X509_OBJECT *ret);
+static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type,
+                                  const X509_NAME *name, X509_OBJECT *ret);
 
 static X509_LOOKUP *X509_LOOKUP_new(const X509_LOOKUP_METHOD *method,
                                     X509_STORE *store) {
@@ -74,8 +75,8 @@ int X509_LOOKUP_ctrl(X509_LOOKUP *ctx, int cmd, const char *argc, long argl,
   }
 }
 
-static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type, X509_NAME *name,
-                                  X509_OBJECT *ret) {
+static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type,
+                                  const X509_NAME *name, X509_OBJECT *ret) {
   if (ctx->method == NULL || ctx->method->get_by_subject == NULL) {
     return 0;
   }
@@ -163,8 +164,8 @@ X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *v, const X509_LOOKUP_METHOD *m) {
   return lu;
 }
 
-int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, int type, X509_NAME *name,
-                                  X509_OBJECT *ret) {
+int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, int type,
+                                  const X509_NAME *name, X509_OBJECT *ret) {
   X509_STORE *ctx = vs->ctx;
   X509_OBJECT stmp;
   CRYPTO_MUTEX_lock_write(&ctx->objs_lock);
@@ -284,7 +285,7 @@ X509 *X509_OBJECT_get0_X509(const X509_OBJECT *a) {
 }
 
 static int x509_object_idx_cnt(STACK_OF(X509_OBJECT) *h, int type,
-                               X509_NAME *name, int *pnmatch) {
+                               const X509_NAME *name, int *pnmatch) {
   X509_OBJECT stmp;
   X509 x509_s;
   X509_CRL crl_s;
@@ -294,12 +295,12 @@ static int x509_object_idx_cnt(STACK_OF(X509_OBJECT) *h, int type,
   switch (type) {
     case X509_LU_X509:
       stmp.data.x509 = &x509_s;
-      x509_s.subject = name;
+      x509_s.subject = const_cast<X509_NAME*>(name);
       break;
     case X509_LU_CRL:
       stmp.data.crl = &crl_s;
       crl_s.crl = &crl_info_s;
-      crl_info_s.issuer = name;
+      crl_info_s.issuer = const_cast<X509_NAME*>(name);
       break;
     default:
       // abort();
@@ -327,12 +328,13 @@ static int x509_object_idx_cnt(STACK_OF(X509_OBJECT) *h, int type,
 }
 
 static int X509_OBJECT_idx_by_subject(STACK_OF(X509_OBJECT) *h, int type,
-                                      X509_NAME *name) {
+                                      const X509_NAME *name) {
   return x509_object_idx_cnt(h, type, name, NULL);
 }
 
 static X509_OBJECT *X509_OBJECT_retrieve_by_subject(STACK_OF(X509_OBJECT) *h,
-                                                    int type, X509_NAME *name) {
+                                                    int type,
+                                                    const X509_NAME *name) {
   int idx;
   idx = X509_OBJECT_idx_by_subject(h, type, name);
   if (idx == -1) {
@@ -364,7 +366,8 @@ STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(X509_STORE *store) {
   return store->objs;
 }
 
-STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm) {
+STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx,
+                                          const X509_NAME *nm) {
   int cnt;
   STACK_OF(X509) *sk = sk_X509_new_null();
   if (sk == NULL) {
@@ -405,7 +408,7 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm) {
 }
 
 STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(X509_STORE_CTX *ctx,
-                                             X509_NAME *nm) {
+                                             const X509_NAME *nm) {
   int cnt;
   X509_OBJECT xobj;
   STACK_OF(X509_CRL) *sk = sk_X509_CRL_new_null();
@@ -473,7 +476,7 @@ static X509_OBJECT *X509_OBJECT_retrieve_match(STACK_OF(X509_OBJECT) *h,
 }
 
 int X509_STORE_CTX_get1_issuer(X509 **out_issuer, X509_STORE_CTX *ctx,
-                               X509 *x) {
+                               const X509 *x) {
   X509_NAME *xn;
   X509_OBJECT obj, *pobj;
   int idx, ret;

@@ -49,9 +49,11 @@ X509_NAME *X509_get_issuer_name(const X509 *a) {
   return a->issuer;
 }
 
-uint32_t X509_issuer_name_hash(X509 *x) { return X509_NAME_hash(x->issuer); }
+uint32_t X509_issuer_name_hash(const X509 *x) {
+  return X509_NAME_hash(x->issuer);
+}
 
-uint32_t X509_issuer_name_hash_old(X509 *x) {
+uint32_t X509_issuer_name_hash_old(const X509 *x) {
   return X509_NAME_hash_old(x->issuer);
 }
 
@@ -66,9 +68,11 @@ const ASN1_INTEGER *X509_get0_serialNumber(const X509 *x509) {
   return &x509->serialNumber;
 }
 
-uint32_t X509_subject_name_hash(X509 *x) { return X509_NAME_hash(x->subject); }
+uint32_t X509_subject_name_hash(const X509 *x) {
+  return X509_NAME_hash(x->subject);
+}
 
-uint32_t X509_subject_name_hash_old(X509 *x) {
+uint32_t X509_subject_name_hash_old(const X509 *x) {
   return X509_NAME_hash_old(x->subject);
 }
 
@@ -120,7 +124,7 @@ int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b) {
   return 0;
 }
 
-uint32_t X509_NAME_hash(X509_NAME *x) {
+uint32_t X509_NAME_hash(const X509_NAME *x) {
   const X509_NAME_CACHE *cache = x509_name_get_cache(x);
   if (cache == nullptr) {
     return 0;
@@ -133,7 +137,7 @@ uint32_t X509_NAME_hash(X509_NAME *x) {
 // I now DER encode the name and hash it.  Since I cache the DER encoding,
 // this is reasonably efficient.
 
-uint32_t X509_NAME_hash_old(X509_NAME *x) {
+uint32_t X509_NAME_hash_old(const X509_NAME *x) {
   const X509_NAME_CACHE *cache = x509_name_get_cache(x);
   if (cache == nullptr) {
     return 0;
@@ -143,7 +147,8 @@ uint32_t X509_NAME_hash_old(X509_NAME *x) {
   return CRYPTO_load_u32_le(md);
 }
 
-X509 *X509_find_by_issuer_and_serial(const STACK_OF(X509) *sk, X509_NAME *name,
+X509 *X509_find_by_issuer_and_serial(const STACK_OF(X509) *sk,
+                                     const X509_NAME *name,
                                      const ASN1_INTEGER *serial) {
   if (serial->type != V_ASN1_INTEGER && serial->type != V_ASN1_NEG_INTEGER) {
     return NULL;
@@ -159,7 +164,7 @@ X509 *X509_find_by_issuer_and_serial(const STACK_OF(X509) *sk, X509_NAME *name,
   return NULL;
 }
 
-X509 *X509_find_by_subject(const STACK_OF(X509) *sk, X509_NAME *name) {
+X509 *X509_find_by_subject(const STACK_OF(X509) *sk, const X509_NAME *name) {
   for (size_t i = 0; i < sk_X509_num(sk); i++) {
     X509 *x509 = sk_X509_value(sk, i);
     if (X509_NAME_cmp(X509_get_subject_name(x509), name) == 0) {

@@ -1396,6 +1396,74 @@ TEST(X509Test, StoreThreads) {
     thread.join();
   }
 }
+
+// Test that serializing a modified |X509_NAME| object on multiple threads is
+// thread-safe. This historically wasn't because OpenSSL's |X509_NAME| object
+// maintains a number of caches.
+TEST(X509Test, SerializeModifiedNameThreads) {
+  bssl::UniquePtr<X509_NAME> name(X509_NAME_new());
+  ASSERT_TRUE(name);
+  ASSERT_TRUE(
+      X509_NAME_add_entry_by_txt(name.get(), "CN", MBSTRING_UTF8,
+                                 reinterpret_cast<const uint8_t *>("Test"),
+                                 /*len=*/-1, /*loc=*/-1, /*set=*/0));
+
+  const size_t kNumThreads = 10;
+  std::vector<std::thread> threads;
+  for (size_t i = 0; i < kNumThreads; i++) {
+    threads.emplace_back([&] {
+      uint8_t *der = nullptr;
+      int der_len = i2d_X509_NAME(name.get(), &der);
+      ASSERT_GT(der_len, 0);
+      OPENSSL_free(der);
+    });
+  }
+  for (auto &thread : threads) {
+    thread.join();
+  }
+}
+
+// Test that serializing a modified |X509| object on multiple threads is
+// thread-safe. This historically wasn't true because OpenSSL's |X509_NAME|
+// object maintains a number of caches, and because |X509_get_issuer_name| and
+// |X509_get_subject_name| aren't const-correct and allow direct, mutable access
+// to the |X509|'s subject and issuer.
+TEST(X509Test, SerializeModifiedCertThreads) {
+  bssl::UniquePtr<X509> cert = CertFromPEM(kLeafPEM);
+  ASSERT_TRUE(cert);
+
+  // Re-encode the TBSCertificate, dropping the cached encoding. As currently
+  // implemented, once the cached encoding is dropped, it is never recreated.
+  // Instead, it's assumed that the DER encoder will reproduce the expected
+  // encoding. https://crbug.com/443261873 discusses changing this model.
+  uint8_t *tbs = nullptr;
+  int tbs_len = i2d_re_X509_tbs(cert.get(), &tbs);
+  ASSERT_GT(tbs_len, 0);
+  OPENSSL_free(tbs);
+
+  // Modify the subject name directly, now that there is no cached encoding.
+  ASSERT_TRUE(X509_NAME_add_entry_by_txt(
+      X509_get_subject_name(cert.get()), "CN", MBSTRING_UTF8,
+      reinterpret_cast<const uint8_t *>("Test"),
+      /*len=*/-1, /*loc=*/-1, /*set=*/0));
+
+  // Now serialize the certificate in parallel. This should be safe to use
+  // across threads. Historically, this would expose the underlying |X509_NAME|
+  // encoder not being thread-safe.
+  const size_t kNumThreads = 10;
+  std::vector<std::thread> threads;
+  for (size_t i = 0; i < kNumThreads; i++) {
+    threads.emplace_back([&] {
+      uint8_t *der = nullptr;
+      int der_len = i2d_X509(cert.get(), &der);
+      ASSERT_GT(der_len, 0);
+      OPENSSL_free(der);
+    });
+  }
+  for (auto &thread : threads) {
+    thread.join();
+  }
+}
 #endif  // OPENSSL_THREADS
 
 static const char kHostname[] = "example.com";

@@ -149,7 +149,7 @@ struct x509_st {
   CRYPTO_MUTEX lock;
 } /* X509 */;
 
-int x509_marshal_tbs_cert(CBB *cbb, X509 *x509);
+int x509_marshal_tbs_cert(CBB *cbb, const X509 *x509);
 
 // X509 is an |ASN1_ITEM| whose ASN.1 type is X.509 Certificate (RFC 5280) and C
 // type is |X509*|.
@@ -164,9 +164,7 @@ typedef struct {
   STACK_OF(X509_ATTRIBUTE) *attributes;  // [ 0 ]
 } X509_REQ_INFO;
 
-// TODO(https://crbug.com/boringssl/407): This is not const because it contains
-// an |X509_NAME|.
-DECLARE_ASN1_FUNCTIONS(X509_REQ_INFO)
+DECLARE_ASN1_FUNCTIONS_const(X509_REQ_INFO)
 
 struct X509_req_st {
   X509_REQ_INFO *req_info;
@@ -202,9 +200,7 @@ typedef struct {
   ASN1_ENCODING enc;
 } X509_CRL_INFO;
 
-// TODO(https://crbug.com/boringssl/407): This is not const because it contains
-// an |X509_NAME|.
-DECLARE_ASN1_FUNCTIONS(X509_CRL_INFO)
+DECLARE_ASN1_FUNCTIONS_const(X509_CRL_INFO)
 
 // Values in idp_flags field
 // IDP present
@@ -291,7 +287,7 @@ struct x509_lookup_method_st {
   void (*free)(X509_LOOKUP *ctx);
   int (*ctrl)(X509_LOOKUP *ctx, int cmd, const char *argc, long argl,
               char **ret);
-  int (*get_by_subject)(X509_LOOKUP *ctx, int type, X509_NAME *name,
+  int (*get_by_subject)(X509_LOOKUP *ctx, int type, const X509_NAME *name,
                         X509_OBJECT *ret);
 } /* X509_LOOKUP_METHOD */;
 
@@ -432,7 +428,8 @@ int X509_policy_check(const STACK_OF(X509) *certs,
 // TODO(davidben): Reduce the scope of the verify callback and remove this. The
 // callback only runs with |X509_V_FLAG_CB_ISSUER_CHECK|, which is only used by
 // one internal project and rust-openssl, who use it by mistake.
-int x509_check_issued_with_callback(X509_STORE_CTX *ctx, X509 *x, X509 *issuer);
+int x509_check_issued_with_callback(X509_STORE_CTX *ctx, const X509 *x,
+                                    const X509 *issuer);
 
 // x509v3_bytes_to_hex encodes |len| bytes from |in| to hex and returns a
 // newly-allocated NUL-terminated string containing the result, or NULL on
@@ -562,9 +559,7 @@ GENERAL_NAMES *v2i_GENERAL_NAMES(const X509V3_EXT_METHOD *method,
                                  const X509V3_CTX *ctx,
                                  const STACK_OF(CONF_VALUE) *nval);
 
-// TODO(https://crbug.com/boringssl/407): Make |issuer| const once the
-// |X509_NAME| issue is resolved.
-int X509_check_akid(X509 *issuer, const AUTHORITY_KEYID *akid);
+int X509_check_akid(const X509 *issuer, const AUTHORITY_KEYID *akid);
 
 int X509_is_valid_trust_id(int trust);
 

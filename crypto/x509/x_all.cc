@@ -262,8 +262,7 @@ int X509_pubkey_digest(const X509 *data, const EVP_MD *type, unsigned char *md,
 int X509_digest(const X509 *x509, const EVP_MD *md, uint8_t *out,
                 unsigned *out_len) {
   uint8_t *der = NULL;
-  // TODO(https://crbug.com/boringssl/407): This function is not const-correct.
-  int der_len = i2d_X509((X509 *)x509, &der);
+  int der_len = i2d_X509(x509, &der);
   if (der_len < 0) {
     return 0;
   }

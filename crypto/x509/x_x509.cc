@@ -256,7 +256,7 @@ static bssl::UniquePtr<X509> x509_parse(CBS *cbs) {
   return bssl::UniquePtr<X509>(X509_parse_from_buffer(buf.get()));
 }
 
-int x509_marshal_tbs_cert(CBB *cbb, X509 *x509) {
+int x509_marshal_tbs_cert(CBB *cbb, const X509 *x509) {
   if (x509->buf != nullptr) {
     // Replay the saved TBSCertificate from the |CRYPTO_BUFFER|, to verify
     // exactly what we parsed. The |CRYPTO_BUFFER| contains the full
@@ -310,7 +310,7 @@ int x509_marshal_tbs_cert(CBB *cbb, X509 *x509) {
   return CBB_flush(cbb);
 }
 
-static int x509_marshal(CBB *cbb, X509 *x509) {
+static int x509_marshal(CBB *cbb, const X509 *x509) {
   CBB cert;
   return CBB_add_asn1(cbb, &cert, CBS_ASN1_SEQUENCE) &&
          x509_marshal_tbs_cert(&cert, x509) &&
@@ -323,7 +323,7 @@ X509 *d2i_X509(X509 **out, const uint8_t **inp, long len) {
   return bssl::D2IFromCBS(out, inp, len, x509_parse);
 }
 
-int i2d_X509(X509 *x509, uint8_t **outp) {
+int i2d_X509(const X509 *x509, uint8_t **outp) {
   if (x509 == NULL) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_MISSING_VALUE);
     return -1;
@@ -369,7 +369,7 @@ static const ASN1_EXTERN_FUNCS x509_extern_funcs = {x509_new_cb, x509_free_cb,
                                                     x509_parse_cb, x509_i2d_cb};
 IMPLEMENT_EXTERN_ASN1(X509, x509_extern_funcs)
 
-X509 *X509_dup(X509 *x509) {
+X509 *X509_dup(const X509 *x509) {
   uint8_t *der = NULL;
   int len = i2d_X509(x509, &der);
   if (len < 0) {
@@ -441,7 +441,7 @@ err:
 // length if pp == NULL.  We ultimately want to avoid modifying *pp in the
 // error path, but that depends on similar hygiene in lower-level functions.
 // Here we avoid compounding the problem.
-static int i2d_x509_aux_internal(X509 *a, unsigned char **pp) {
+static int i2d_x509_aux_internal(const X509 *a, unsigned char **pp) {
   int length, tmplen;
   unsigned char *start = pp != NULL ? *pp : NULL;
 
@@ -476,7 +476,7 @@ static int i2d_x509_aux_internal(X509 *a, unsigned char **pp) {
 // we're writing two ASN.1 objects back to back, we can't have i2d_X509() do
 // the allocation, nor can we allow i2d_X509_CERT_AUX() to increment the
 // allocated buffer.
-int i2d_X509_AUX(X509 *a, unsigned char **pp) {
+int i2d_X509_AUX(const X509 *a, unsigned char **pp) {
   int length;
   unsigned char *tmp;
 
@@ -505,13 +505,13 @@ int i2d_X509_AUX(X509 *a, unsigned char **pp) {
   return length;
 }
 
-int i2d_re_X509_tbs(X509 *x509, unsigned char **outp) {
+int i2d_re_X509_tbs(X509 *x509, uint8_t **outp) {
   CRYPTO_BUFFER_free(x509->buf);
   x509->buf = nullptr;
   return i2d_X509_tbs(x509, outp);
 }
 
-int i2d_X509_tbs(X509 *x509, unsigned char **outp) {
+int i2d_X509_tbs(const X509 *x509, uint8_t **outp) {
   return bssl::I2DFromCBB(/*initial_capacity=*/128, outp, [&](CBB *cbb) -> bool {
     return x509_marshal_tbs_cert(cbb, x509);
   });
