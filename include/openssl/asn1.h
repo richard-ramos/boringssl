@@ -77,10 +77,6 @@ extern "C" {
 // V_ASN1_ANY is used by the ASN.1 templates to indicate an ANY type.
 #define V_ASN1_ANY (-4)
 
-// V_ASN1_ANY_AS_STRING is used by the ASN.1 templates to indicate an ANY type
-// represented with |ASN1_STRING| instead of |ASN1_TYPE|.
-#define V_ASN1_ANY_AS_STRING (-5)
-
 // The following constants are tag numbers for universal types.
 #define V_ASN1_EOC 0
 #define V_ASN1_BOOLEAN 1

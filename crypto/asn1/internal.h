@@ -365,11 +365,6 @@ DECLARE_ASN1_ITEM(DIRECTORYSTRING)
 // 5280) and C type is |ASN1_STRING*|.
 DECLARE_ASN1_ITEM(DISPLAYTEXT)
 
-// ASN1_ANY_AS_STRING is an |ASN1_ITEM| with ASN.1 type ANY and C type
-// |ASN1_STRING*|. Types which are not represented with |ASN1_STRING|, such as
-// |ASN1_OBJECT|, are represented with type |V_ASN1_OTHER|.
-DECLARE_ASN1_ITEM(ASN1_ANY_AS_STRING)
-
 
 #if defined(__cplusplus)
 }  // extern C
