@@ -2389,7 +2389,7 @@ OPENSSL_EXPORT int i2d_ISSUING_DIST_POINT(const ISSUING_DIST_POINT *idp,
 // suite of related extensions determines the "policies" that apply to a
 // certificate path. Evaluating these policies is extremely complex and has led
 // to denial-of-service vulnerabilities in several X.509 implementations. See
-// draft-ietf-lamps-x509-policy-graph.
+// RFC 9618.
 //
 // Do not use this mechanism.
 
