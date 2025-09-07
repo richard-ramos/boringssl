@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 
+#include <openssl/asn1.h>
 #include <openssl/bn.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>

@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <utility>
 #include <type_traits>
 
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)

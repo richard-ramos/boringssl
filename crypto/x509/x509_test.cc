@@ -31,6 +31,7 @@
 #include <openssl/curve25519.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
 #include <openssl/nid.h>
 #include <openssl/pem.h>
 #include <openssl/pool.h>

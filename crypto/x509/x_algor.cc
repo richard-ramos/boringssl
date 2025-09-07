@@ -17,6 +17,7 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/digest.h>
+#include <openssl/err.h>
 #include <openssl/obj.h>
 #include <openssl/mem.h>
 
