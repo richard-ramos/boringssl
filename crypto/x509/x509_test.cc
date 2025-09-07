@@ -8911,6 +8911,12 @@ TEST(X509Test, VerifyUnusualTBSCert) {
   // The TBSCertificates were made with https://github.com/google/der-ascii.
   // crypto/x509/test/make_unusual_tbs.go then filled in valid signatures.
   const char *kPaths[] = {
+      // Non-canonical encoding of TRUE in the critical bit.
+      // TODO(crbug.com/442221114): The parser should reject this.
+		  "crypto/x509/test/unusual_tbs_critical_ber.pem",
+      // A FALSE critical bit is encoded instead of omitted as DEFAULT.
+      // TODO(crbug.com/442221114): The parser should reject this.
+		  "crypto/x509/test/unusual_tbs_critical_false_not_omitted.pem",
       // Empty extension instead of omitting the entire field.
       // TODO(crbug.com/442221114): The parser should reject this.
       "crypto/x509/test/unusual_tbs_empty_extension_not_omitted.pem",
@@ -8918,8 +8924,7 @@ TEST(X509Test, VerifyUnusualTBSCert) {
       // omitted. We accept this due to b/167375496.
       "crypto/x509/test/unusual_tbs_null_sigalg_param.pem",
       // Deprecated subject and issuer unique IDs are present. This is valid,
-      // but
-      // rarely exercised.
+      // but rarely exercised.
       "crypto/x509/test/unusual_tbs_uid_both.pem",
       "crypto/x509/test/unusual_tbs_uid_issuer.pem",
       "crypto/x509/test/unusual_tbs_uid_subject.pem",
