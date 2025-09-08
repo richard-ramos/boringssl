@@ -331,8 +331,10 @@ OPENSSL_EXPORT void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *out);
 //
 // These functions may not be used with |ASN1_ITEM|s whose C type is
 // |ASN1_BOOLEAN|.
-OPENSSL_EXPORT int ASN1_item_i2d_fp(const ASN1_ITEM *it, FILE *out, void *in);
-OPENSSL_EXPORT int ASN1_item_i2d_bio(const ASN1_ITEM *it, BIO *out, void *in);
+OPENSSL_EXPORT int ASN1_item_i2d_fp(const ASN1_ITEM *it, FILE *out,
+                                    const void *in);
+OPENSSL_EXPORT int ASN1_item_i2d_bio(const ASN1_ITEM *it, BIO *out,
+                                     const void *in);
 
 // ASN1_item_unpack parses |oct|'s contents as |it|'s ASN.1 type. It returns a
 // newly-allocated instance of |it|'s C type on success, or NULL on error.
