@@ -34,10 +34,6 @@ typedef struct evp_pkey_ctx_method_st EVP_PKEY_CTX_METHOD;
 struct evp_pkey_alg_st {
   // method implements operations for this |EVP_PKEY_ALG|.
   const EVP_PKEY_ASN1_METHOD *method;
-
-  // ec_group returns the |EC_GROUP| for this algorithm, if |method| is for
-  // |EVP_PKEY_EC|.
-  const EC_GROUP *(*ec_group)();
 };
 
 enum evp_decode_result_t {

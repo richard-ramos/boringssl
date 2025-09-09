@@ -307,18 +307,12 @@ const EVP_PKEY_ASN1_METHOD rsa_pss_sha256_asn1_meth = {
 
 
 const EVP_PKEY_ALG *EVP_pkey_rsa(void) {
-  static const EVP_PKEY_ALG kAlg = {
-      /*method=*/&rsa_asn1_meth,
-      /*ec_group=*/nullptr,
-  };
+  static const EVP_PKEY_ALG kAlg = {&rsa_asn1_meth};
   return &kAlg;
 }
 
 const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha256(void) {
-  static const EVP_PKEY_ALG kAlg = {
-      /*method=*/&rsa_pss_sha256_asn1_meth,
-      /*ec_group=*/nullptr,
-  };
+  static const EVP_PKEY_ALG kAlg = {&rsa_pss_sha256_asn1_meth};
   return &kAlg;
 }
 
