@@ -532,7 +532,7 @@ const EVP_PKEY_CTX_METHOD rsa_pkey_meth = {
     pkey_rsa_ctrl,
 };
 
-const EVP_PKEY_CTX_METHOD rsa_pss_sha256_pkey_meth = {
+const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth = {
     EVP_PKEY_RSA_PSS,
     pkey_rsa_init,
     pkey_rsa_copy,
