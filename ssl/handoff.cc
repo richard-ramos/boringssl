@@ -756,9 +756,10 @@ bool SSL_apply_handback(SSL *ssl, Span<const uint8_t> handback) {
         !CBS_get_asn1(&key_share, &private_key, CBS_ASN1_OCTETSTRING)) {
       return false;
     }
-    hs->key_shares[0] = SSLKeyShare::Create(group_id);
-    if (!hs->key_shares[0] ||
-        !hs->key_shares[0]->DeserializePrivateKey(&private_key)) {
+    UniquePtr<SSLKeyShare> ssl_key_share = SSLKeyShare::Create(group_id);
+    if (ssl_key_share == nullptr ||
+        !ssl_key_share->DeserializePrivateKey(&private_key) ||
+        !hs->key_shares.TryPushBack(std::move(ssl_key_share))) {
       return false;
     }
   }

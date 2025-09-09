@@ -445,6 +445,9 @@ constexpr NamedGroup kNamedGroups[] = {
     {NID_MLKEM1024, SSL_GROUP_MLKEM1024, "MLKEM1024", ""},
 };
 
+static_assert(std::size(kNamedGroups) == kNumNamedGroups,
+              "kNamedGroups size mismatch");
+
 }  // namespace
 
 Span<const NamedGroup> NamedGroups() { return kNamedGroups; }

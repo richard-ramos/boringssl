@@ -954,6 +954,9 @@ struct NamedGroup {
 // NamedGroups returns all supported groups.
 Span<const NamedGroup> NamedGroups();
 
+// kNumNamedGroups is the number of supported groups.
+constexpr size_t kNumNamedGroups = 7u;
+
 // DefaultSupportedGroupIds returns the list of IDs for the default groups that
 // are supported when the caller hasn't explicitly configured supported groups.
 Span<const uint16_t> DefaultSupportedGroupIds();
@@ -1766,10 +1769,11 @@ struct SSL_HANDSHAKE {
   // error, if |wait| is |ssl_hs_error|, is the error the handshake failed on.
   UniquePtr<ERR_SAVE_STATE> error;
 
-  // key_shares are the current key exchange instances. The second is only used
-  // as a client if we believe that we should offer two key shares in a
-  // ClientHello.
-  UniquePtr<SSLKeyShare> key_shares[2];
+  // key_shares are the current key exchange instances, in preference order. Any
+  // members of this vector must be non-null. By default, no more than two are
+  // used, and the second is only used as a client if we believe that we should
+  // offer two key shares in a ClientHello.
+  InplaceVector<UniquePtr<SSLKeyShare>, kNumNamedGroups> key_shares;
 
   // transcript is the current handshake transcript.
   SSLTranscript transcript;
