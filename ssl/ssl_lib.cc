@@ -1815,6 +1815,21 @@ int SSL_CTX_set_tlsext_ticket_key_cb(
   return 1;
 }
 
+static bool check_no_duplicates(Span<const uint16_t> list) {
+  if (list.size() < 2) {
+    return true;
+  }
+  for (size_t i = 0; i < list.size() - 1; ++i) {
+    for (size_t j = i + 1; j < list.size(); ++j) {
+      if (list[i] == list[j]) {
+        OPENSSL_PUT_ERROR(SSL, SSL_R_DUPLICATE_GROUP);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 static bool check_group_ids(Span<const uint16_t> group_ids) {
   for (uint16_t group_id : group_ids) {
     if (ssl_group_id_to_nid(group_id) == NID_undef) {
@@ -1822,7 +1837,7 @@ static bool check_group_ids(Span<const uint16_t> group_ids) {
       return false;
     }
   }
-  return true;
+  return check_no_duplicates(group_ids);
 }
 
 int SSL_CTX_set1_group_ids(SSL_CTX *ctx, const uint16_t *group_ids,
@@ -1853,6 +1868,9 @@ static bool ssl_nids_to_group_ids(Array<uint16_t> *out_group_ids,
       OPENSSL_PUT_ERROR(SSL, SSL_R_UNSUPPORTED_ELLIPTIC_CURVE);
       return false;
     }
+  }
+  if (!check_no_duplicates(group_ids)) {
+    return false;
   }
 
   *out_group_ids = std::move(group_ids);
@@ -1905,6 +1923,9 @@ static bool ssl_str_to_group_ids(Array<uint16_t> *out_group_ids,
   } while (col);
 
   assert(i == count);
+  if (!check_no_duplicates(group_ids)) {
+    return false;
+  }
   *out_group_ids = std::move(group_ids);
   return true;
 }
