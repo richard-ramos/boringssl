@@ -147,7 +147,7 @@ static int rsa_pub_encode_pss_sha256(CBB *out, const EVP_PKEY *key) {
       !CBB_add_asn1_element(&algorithm, CBS_ASN1_OBJECT,
                             rsa_pss_sha256_asn1_meth.oid,
                             rsa_pss_sha256_asn1_meth.oid_len) ||
-      !rsa_marshal_pss_params(&algorithm, rsa_pss_sha256) ||
+      !rsa_marshal_pss_params(&algorithm, rsa->pss_params) ||
       !CBB_add_asn1(&spki, &key_bitstring, CBS_ASN1_BITSTRING) ||
       !CBB_add_u8(&key_bitstring, 0 /* padding */) ||
       !RSA_marshal_public_key(&key_bitstring, rsa) ||  //
@@ -174,6 +174,7 @@ static evp_decode_result_t rsa_pub_decode_pss_sha256(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
+  rsa->pss_params = rsa_pss_sha256;
   evp_pkey_set0(out, &rsa_pss_sha256_asn1_meth, rsa.release());
   return evp_decode_ok;
 }
@@ -187,7 +188,7 @@ static int rsa_priv_encode_pss_sha256(CBB *out, const EVP_PKEY *key) {
       !CBB_add_asn1_element(&algorithm, CBS_ASN1_OBJECT,
                             rsa_pss_sha256_asn1_meth.oid,
                             rsa_pss_sha256_asn1_meth.oid_len) ||
-      !rsa_marshal_pss_params(&algorithm, rsa_pss_sha256) ||
+      !rsa_marshal_pss_params(&algorithm, rsa->pss_params) ||
       !CBB_add_asn1(&pkcs8, &private_key, CBS_ASN1_OCTETSTRING) ||
       !RSA_marshal_private_key(&private_key, rsa) ||  //
       !CBB_flush(out)) {
@@ -213,6 +214,7 @@ static evp_decode_result_t rsa_priv_decode_pss_sha256(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
+  rsa->pss_params = rsa_pss_sha256;
   evp_pkey_set0(out, &rsa_pss_sha256_asn1_meth, rsa.release());
   return evp_decode_ok;
 }
