@@ -954,6 +954,10 @@ struct NamedGroup {
 // NamedGroups returns all supported groups.
 Span<const NamedGroup> NamedGroups();
 
+// DefaultSupportedGroupIds returns the list of IDs for the default groups that
+// are supported when the caller hasn't explicitly configured supported groups.
+Span<const uint16_t> DefaultSupportedGroupIds();
+
 // ssl_nid_to_group_id looks up the group corresponding to |nid|. On success, it
 // sets |*out_group_id| to the group ID and returns true. Otherwise, it returns
 // false.
@@ -3588,9 +3592,6 @@ bool tls1_change_cipher_state(SSL_HANDSHAKE *hs,
 // writes it to |out|. |out| must have size |SSL3_MASTER_SECRET_SIZE|.
 bool tls1_generate_master_secret(SSL_HANDSHAKE *hs, Span<uint8_t> out,
                                  Span<const uint8_t> premaster);
-
-// tls1_get_grouplist returns the locally-configured group preference list.
-Span<const uint16_t> tls1_get_grouplist(const SSL_HANDSHAKE *ssl);
 
 // tls1_check_group_id returns whether |group_id| is consistent with locally-
 // configured group preferences.

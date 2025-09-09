@@ -17,6 +17,8 @@
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
 
+#include <algorithm>
+
 #include "../crypto/internal.h"
 #include "internal.h"
 
@@ -186,21 +188,15 @@ static bool apply_remote_features(SSL *ssl, CBS *in) {
     supported_groups[idx++] = group;
   }
   Span<const uint16_t> configured_groups =
-      tls1_get_grouplist(ssl->s3->hs.get());
+      ssl->s3->hs->config->supported_group_list;
   Array<uint16_t> new_configured_groups;
   if (!new_configured_groups.InitForOverwrite(configured_groups.size())) {
     return false;
   }
   idx = 0;
   for (uint16_t configured_group : configured_groups) {
-    bool ok = false;
-    for (uint16_t supported_group : supported_groups) {
-      if (supported_group == configured_group) {
-        ok = true;
-        break;
-      }
-    }
-    if (ok) {
+    if (std::find(supported_groups.begin(), supported_groups.end(),
+                  configured_group) != supported_groups.end()) {
       new_configured_groups[idx++] = configured_group;
     }
   }

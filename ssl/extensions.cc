@@ -200,19 +200,6 @@ bool ssl_client_hello_get_extension(const SSL_CLIENT_HELLO *client_hello,
   return false;
 }
 
-static const uint16_t kDefaultGroups[] = {
-    SSL_GROUP_X25519,
-    SSL_GROUP_SECP256R1,
-    SSL_GROUP_SECP384R1,
-};
-
-Span<const uint16_t> tls1_get_grouplist(const SSL_HANDSHAKE *hs) {
-  if (!hs->config->supported_group_list.empty()) {
-    return hs->config->supported_group_list;
-  }
-  return Span<const uint16_t>(kDefaultGroups);
-}
-
 bool tls1_get_shared_group(SSL_HANDSHAKE *hs, uint16_t *out_group_id) {
   SSL *const ssl = hs->ssl;
   assert(ssl->server);
@@ -226,7 +213,7 @@ bool tls1_get_shared_group(SSL_HANDSHAKE *hs, uint16_t *out_group_id) {
   // support our favoured group. Thus we do not special-case an emtpy
   // |peer_supported_group_list|.
 
-  Span<const uint16_t> groups = tls1_get_grouplist(hs);
+  Span<const uint16_t> groups = hs->config->supported_group_list;
   Span<const uint16_t> pref, supp;
   if (ssl->options & SSL_OP_CIPHER_SERVER_PREFERENCE) {
     pref = groups;
@@ -264,7 +251,7 @@ bool tls1_check_group_id(const SSL_HANDSHAKE *hs, uint16_t group_id) {
     return false;
   }
 
-  for (uint16_t supported : tls1_get_grouplist(hs)) {
+  for (uint16_t supported : hs->config->supported_group_list) {
     if (supported == group_id) {
       return true;
     }
@@ -2229,7 +2216,7 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
   uint16_t second_group_id = 0;
   if (override_group_id == 0) {
     // Predict the most preferred group.
-    Span<const uint16_t> groups = tls1_get_grouplist(hs);
+    Span<const uint16_t> groups = hs->config->supported_group_list;
     if (groups.empty()) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_NO_GROUPS_SPECIFIED);
       return false;
@@ -2521,7 +2508,7 @@ static bool ext_supported_groups_add_clienthello(const SSL_HANDSHAKE *hs,
     return false;
   }
 
-  for (uint16_t group : tls1_get_grouplist(hs)) {
+  for (uint16_t group : hs->config->supported_group_list) {
     if (is_post_quantum_group(group) && hs->max_version < TLS1_3_VERSION) {
       continue;
     }

@@ -454,6 +454,10 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method) {
     return nullptr;
   }
 
+  if (!ret->supported_group_list.CopyFrom(DefaultSupportedGroupIds())) {
+    return nullptr;
+  }
+
   return ret.release();
 }
 
@@ -1843,6 +1847,9 @@ static bool check_group_ids(Span<const uint16_t> group_ids) {
 int SSL_CTX_set1_group_ids(SSL_CTX *ctx, const uint16_t *group_ids,
                            size_t num_group_ids) {
   auto span = Span(group_ids, num_group_ids);
+  if (span.empty()) {
+    span = DefaultSupportedGroupIds();
+  }
   return check_group_ids(span) && ctx->supported_group_list.CopyFrom(span);
 }
 
@@ -1852,12 +1859,18 @@ int SSL_set1_group_ids(SSL *ssl, const uint16_t *group_ids,
     return 0;
   }
   auto span = Span(group_ids, num_group_ids);
+  if (span.empty()) {
+    span = DefaultSupportedGroupIds();
+  }
   return check_group_ids(span) &&
          ssl->config->supported_group_list.CopyFrom(span);
 }
 
 static bool ssl_nids_to_group_ids(Array<uint16_t> *out_group_ids,
                                   Span<const int> nids) {
+  if (nids.empty()) {
+    return out_group_ids->CopyFrom(DefaultSupportedGroupIds());
+  }
   Array<uint16_t> group_ids;
   if (!group_ids.InitForOverwrite(nids.size())) {
     return false;
