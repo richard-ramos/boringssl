@@ -28,14 +28,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-
-#if defined(OPENSSL_LINUX)
-#if defined(BORINGSSL_FIPS)
-#include <linux/random.h>
-#include <sys/ioctl.h>
-#endif
 #include <sys/syscall.h>
+#include <unistd.h>
 
 #if defined(OPENSSL_ANDROID)
 #include <sys/system_properties.h>
@@ -57,7 +51,6 @@
 #if defined(OPENSSL_HAS_GETAUXVAL)
 #include <sys/auxv.h>
 #endif
-#endif  // OPENSSL_LINUX
 
 #include <openssl/mem.h>
 
@@ -248,14 +241,11 @@ static int fill_with_entropy(uint8_t *out, size_t len, int block, int seed) {
     return 1;
   }
 
-#if defined(USE_NR_getrandom) || defined(FREEBSD_GETRANDOM)
+#if defined(USE_NR_getrandom)
   int getrandom_flags = 0;
   if (!block) {
     getrandom_flags |= GRND_NONBLOCK;
   }
-#endif
-
-#if defined(USE_NR_getrandom)
   if (seed) {
     getrandom_flags |= extra_getrandom_flags_for_seed;
   }
