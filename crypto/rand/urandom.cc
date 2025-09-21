@@ -158,12 +158,6 @@ static void init_once(void) {
 #endif  // USE_NR_getrandom
 
   // FIPS builds must support getrandom.
-  //
-  // Historically, only Android FIPS builds required getrandom, while Linux FIPS
-  // builds had a /dev/urandom fallback which used RNDGETENTCNT as a poor
-  // approximation for getrandom's blocking behavior. This is now removed, but
-  // avoid making assumptions on this removal until March 2023, in case it needs
-  // to be restored. This comment can be deleted after March 2023.
 #if defined(BORINGSSL_FIPS)
   perror("getrandom not found");
   abort();
