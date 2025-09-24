@@ -1124,6 +1124,14 @@ boringssl_decrepit_test_sources := \
   decrepit/ripemd/ripemd_test.cc \
   decrepit/xts/xts_test.cc
 
+boringssl_entropy_modulewrapper_sources := \
+  util/fipstools/acvp/entropy_modulewrapper/main.cc \
+  util/fipstools/acvp/entropy_modulewrapper/modulewrapper.cc \
+  util/fipstools/acvp/modulewrapper/proto.cc
+
+boringssl_entropy_modulewrapper_internal_headers := \
+  util/fipstools/acvp/modulewrapper/modulewrapper.h
+
 boringssl_fuzz_sources := \
   fuzz/arm_cpuinfo.cc \
   fuzz/bn_div.cc \
@@ -1162,7 +1170,8 @@ boringssl_fuzz_sources := \
 
 boringssl_modulewrapper_sources := \
   util/fipstools/acvp/modulewrapper/main.cc \
-  util/fipstools/acvp/modulewrapper/modulewrapper.cc
+  util/fipstools/acvp/modulewrapper/modulewrapper.cc \
+  util/fipstools/acvp/modulewrapper/proto.cc
 
 boringssl_modulewrapper_internal_headers := \
   util/fipstools/acvp/modulewrapper/modulewrapper.h
