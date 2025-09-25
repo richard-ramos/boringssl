@@ -1089,6 +1089,14 @@ static bssl::UniquePtr<STACK_OF(X509)> CertsToStack(
   return stack;
 }
 
+static bssl::Span<const uint8_t> ASN1StringAsBytes(const ASN1_STRING *str) {
+  return bssl::Span(ASN1_STRING_get0_data(str), ASN1_STRING_length(str));
+}
+
+static std::string_view ASN1StringAsView(const ASN1_STRING *str) {
+  return bssl::BytesAsStringView(ASN1StringAsBytes(str));
+}
+
 // CRLsToStack converts a vector of |X509_CRL*| to an OpenSSL
 // STACK_OF(X509_CRL), bumping the reference counts for each CRL in question.
 static bssl::UniquePtr<STACK_OF(X509_CRL)> CRLsToStack(
@@ -4358,8 +4366,7 @@ TEST(X509Test, Attribute) {
       ASSERT_TRUE(value);
       EXPECT_EQ(V_ASN1_BMPSTRING, value->type);
       EXPECT_EQ(Bytes(kTest1),
-                Bytes(ASN1_STRING_get0_data(value->value.bmpstring),
-                      ASN1_STRING_length(value->value.bmpstring)));
+                Bytes(ASN1StringAsBytes(value->value.bmpstring)));
 
       // |X509_ATTRIBUTE_get0_data| requires the type match.
       EXPECT_FALSE(
@@ -4367,8 +4374,7 @@ TEST(X509Test, Attribute) {
       const ASN1_BMPSTRING *bmpstring = static_cast<const ASN1_BMPSTRING *>(
           X509_ATTRIBUTE_get0_data(attr, idx, V_ASN1_BMPSTRING, nullptr));
       ASSERT_TRUE(bmpstring);
-      EXPECT_EQ(Bytes(kTest1), Bytes(ASN1_STRING_get0_data(bmpstring),
-                                     ASN1_STRING_length(bmpstring)));
+      EXPECT_EQ(Bytes(kTest1), Bytes(ASN1StringAsBytes(bmpstring)));
       idx++;
     }
 
@@ -4377,8 +4383,7 @@ TEST(X509Test, Attribute) {
       ASSERT_TRUE(value);
       EXPECT_EQ(V_ASN1_BMPSTRING, value->type);
       EXPECT_EQ(Bytes(kTest2),
-                Bytes(ASN1_STRING_get0_data(value->value.bmpstring),
-                      ASN1_STRING_length(value->value.bmpstring)));
+                Bytes(ASN1StringAsBytes(value->value.bmpstring)));
       idx++;
     }
 
@@ -5734,8 +5739,7 @@ TEST(X509Test, AddExt) {
       EXPECT_EQ(OBJ_obj2nid(X509_EXTENSION_get_object(ext)), exts[i].nid);
       EXPECT_EQ(X509_EXTENSION_get_critical(ext), exts[i].critical ? 1 : 0);
       const ASN1_OCTET_STRING *data = X509_EXTENSION_get_data(ext);
-      EXPECT_EQ(Bytes(ASN1_STRING_get0_data(data), ASN1_STRING_length(data)),
-                Bytes(exts[i].data));
+      EXPECT_EQ(Bytes(ASN1StringAsBytes(data)), Bytes(exts[i].data));
     }
   };
 
@@ -7454,8 +7458,7 @@ TEST(X509Test, NameAttributeValues) {
     EXPECT_EQ(Bytes(OBJ_get0_data(obj), OBJ_length(obj)), Bytes(kOID));
     const ASN1_STRING *value = X509_NAME_ENTRY_get_data(entry);
     EXPECT_EQ(ASN1_STRING_type(value), t.str_type);
-    EXPECT_EQ(Bytes(ASN1_STRING_get0_data(value), ASN1_STRING_length(value)),
-              Bytes(t.str_contents));
+    EXPECT_EQ(Bytes(ASN1StringAsBytes(value)), Bytes(t.str_contents));
 
     // The name should re-encode with the same input.
     uint8_t *der = nullptr;
@@ -8876,8 +8879,7 @@ TEST(X509Test, ParseIPAddress) {
       EXPECT_FALSE(oct);
     } else {
       ASSERT_TRUE(oct);
-      EXPECT_EQ(Bytes(t.out), Bytes(ASN1_STRING_get0_data(oct.get()),
-                                    ASN1_STRING_length(oct.get())));
+      EXPECT_EQ(Bytes(t.out), Bytes(ASN1StringAsBytes(oct.get())));
     }
   }
 }
@@ -9132,6 +9134,32 @@ TEST(X509Test, NonDefaultKeyType) {
   EXPECT_EQ(X509_V_OK,
             Verify(cert_with_key.get(), /*roots=*/{root_with_key.get()},
                    /*intermediates=*/{}, /*crls=*/{}));
+}
+
+// Test that |X509_set_subject_name| on an |X509_NAME| that was already the
+// subject did not break.
+TEST(X509Test, SelfSetSubjectAndIssuer) {
+  bssl::UniquePtr<EVP_PKEY> key = PrivateKeyFromPEM(kP256Key);
+  ASSERT_TRUE(key);
+  bssl::UniquePtr<X509> cert =
+      MakeTestCert("Issuer", "Subject", key.get(), /*is_ca=*/true);
+
+  EXPECT_TRUE(
+      X509_set_issuer_name(cert.get(), X509_get_issuer_name(cert.get())));
+  EXPECT_TRUE(
+      X509_set_subject_name(cert.get(), X509_get_subject_name(cert.get())));
+
+  const X509_NAME *issuer = X509_get_issuer_name(cert.get());
+  EXPECT_EQ(X509_NAME_entry_count(issuer), 1);
+  const X509_NAME_ENTRY *entry = X509_NAME_get_entry(issuer, 0);
+  EXPECT_EQ(OBJ_obj2nid(X509_NAME_ENTRY_get_object(entry)), NID_commonName);
+  EXPECT_EQ("Issuer", ASN1StringAsView(X509_NAME_ENTRY_get_data(entry)));
+
+  const X509_NAME *subject = X509_get_subject_name(cert.get());
+  EXPECT_EQ(X509_NAME_entry_count(subject), 1);
+  entry = X509_NAME_get_entry(subject, 0);
+  EXPECT_EQ(OBJ_obj2nid(X509_NAME_ENTRY_get_object(entry)), NID_commonName);
+  EXPECT_EQ("Subject", ASN1StringAsView(X509_NAME_ENTRY_get_data(entry)));
 }
 
 }  // namespace
