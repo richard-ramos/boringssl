@@ -4072,8 +4072,8 @@ static bool ssl_scan_clienthello_tlsext(SSL_HANDSHAKE *hs,
     CBS *contents = NULL, fake_contents;
     static const uint8_t kFakeRenegotiateExtension[] = {0};
     if (kExtensions[i].value == TLSEXT_TYPE_renegotiate &&
-        ssl_client_cipher_list_contains_cipher(client_hello,
-                                               SSL3_CK_SCSV & 0xffff)) {
+        ssl_client_cipher_list_contains_cipher(
+            client_hello, SSL_CIPHER_EMPTY_RENEGOTIATION_INFO_SCSV)) {
       // The renegotiation SCSV was received so pretend that we received a
       // renegotiation extension.
       CBS_init(&fake_contents, kFakeRenegotiateExtension,

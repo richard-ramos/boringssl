@@ -242,8 +242,8 @@ struct ssl_cipher_st {
   const char *name;
   // standard_name is the IETF name for the cipher.
   const char *standard_name;
-  // id is the cipher suite value bitwise OR-d with 0x03000000.
-  uint32_t id;
+  // protocol_id is the cipher's two-byte protocol ID.
+  uint16_t protocol_id;
 
   // algorithm_* determine the cipher suite. See constants below for the values.
   uint32_t algorithm_mkey;

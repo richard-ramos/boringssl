@@ -97,7 +97,7 @@ static const VersionParam kAllVersions[] = {
 };
 
 struct ExpectedCipher {
-  unsigned long id;
+  uint16_t protocol_id;
   int in_group_flag;
 };
 
@@ -156,10 +156,10 @@ static const CipherTest kCipherTests[] = {
         "ECDHE-ECDSA-AES128-GCM-SHA256:"
         "ECDHE-RSA-AES128-GCM-SHA256",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -171,10 +171,10 @@ static const CipherTest kCipherTests[] = {
         "ECDHE-RSA-AES128-GCM-SHA256:"
         "+aRSA",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -186,8 +186,8 @@ static const CipherTest kCipherTests[] = {
         "ECDHE-ECDSA-AES128-GCM-SHA256:"
         "ECDHE-RSA-AES128-GCM-SHA256",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -195,7 +195,7 @@ static const CipherTest kCipherTests[] = {
     {
         "kRSA+AESGCM+AES128",
         {
-            {TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -207,8 +207,8 @@ static const CipherTest kCipherTests[] = {
         "-kRSA:-ALL:"
         "AESGCM+AES128+aRSA",
         {
-            {TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -220,10 +220,10 @@ static const CipherTest kCipherTests[] = {
         "ECDHE-RSA-AES128-GCM-SHA256:"
         "BOGUS1",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         true,
     },
@@ -235,10 +235,10 @@ static const CipherTest kCipherTests[] = {
         "ECDHE-RSA-AES128-GCM-SHA256:"
         "-BOGUS2:+BOGUS3:!BOGUS4",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         true,
     },
@@ -248,10 +248,10 @@ static const CipherTest kCipherTests[] = {
         "[ECDHE-RSA-CHACHA20-POLY1305]:"
         "ECDHE-RSA-AES128-GCM-SHA256",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 1},
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 1},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -262,10 +262,10 @@ static const CipherTest kCipherTests[] = {
         "[TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256]:"
         "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 1},
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 1},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -284,11 +284,11 @@ static const CipherTest kCipherTests[] = {
         // by strength. Then RSA, backwards by strength.
         "aRSA",
         {
-            {TLS1_CK_ECDHE_RSA_WITH_AES_256_CBC_SHA, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA, 0},
-            {TLS1_CK_RSA_WITH_AES_128_SHA, 0},
-            {TLS1_CK_RSA_WITH_AES_256_SHA, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_256_CBC_SHA, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_AES_256_CBC_SHA, 0},
         },
         false,
     },
@@ -301,8 +301,8 @@ static const CipherTest kCipherTests[] = {
         "ECDHE-RSA-AES256-GCM-SHA384:"
         "@STRENGTH+AES256",
         {
-            {TLS1_CK_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -312,9 +312,9 @@ static const CipherTest kCipherTests[] = {
         "@STRENGTH+AES256:"
         "ECDHE-RSA-CHACHA20-POLY1305",
         {
-            {TLS1_CK_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
         },
         false,
     },
@@ -326,8 +326,8 @@ static const CipherTest kCipherTests[] = {
         "!ECDHE-RSA-AES128-GCM-SHA256+RSA:"
         "!ECDSA+ECDHE-ECDSA-AES128-GCM-SHA256",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         true,
     },
@@ -335,7 +335,7 @@ static const CipherTest kCipherTests[] = {
     {
         "AES128-SHA:ECDHE-RSA-AES128-GCM-SHA256:!SSLv3",
         {
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -343,7 +343,7 @@ static const CipherTest kCipherTests[] = {
     {
         "AES128-SHA:ECDHE-RSA-AES128-GCM-SHA256:!TLSv1.2",
         {
-            {TLS1_CK_RSA_WITH_AES_128_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA, 0},
         },
         false,
     },
@@ -352,8 +352,8 @@ static const CipherTest kCipherTests[] = {
     {
         "AES128-SHA:ECDHE-RSA-AES128-GCM-SHA256:!TLSv1.2+SSLv3",
         {
-            {TLS1_CK_RSA_WITH_AES_128_SHA, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -362,11 +362,11 @@ static const CipherTest kCipherTests[] = {
         "AES128-SHA: ECDHE-RSA-AES128-GCM-SHA256 AES256-SHA "
         ",ECDHE-ECDSA-AES128-GCM-SHA256 ; AES128-GCM-SHA256",
         {
-            {TLS1_CK_RSA_WITH_AES_128_SHA, 0},
-            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_RSA_WITH_AES_256_SHA, 0},
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA, 0},
+            {SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_RSA_WITH_AES_256_CBC_SHA, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_GCM_SHA256, 0},
         },
         // …but not in strict mode.
         true,
@@ -375,10 +375,10 @@ static const CipherTest kCipherTests[] = {
     {
         "RSA",
         {
-            {TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_RSA_WITH_AES_256_GCM_SHA384, 0},
-            {TLS1_CK_RSA_WITH_AES_128_SHA, 0},
-            {TLS1_CK_RSA_WITH_AES_256_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_RSA_WITH_AES_256_GCM_SHA384, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_AES_256_CBC_SHA, 0},
         },
         false,
     },
@@ -386,14 +386,14 @@ static const CipherTest kCipherTests[] = {
     {
         "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
         {
-            {SSL3_CK_RSA_DES_192_CBC3_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA, 0},
         },
         false,
     },
     {
         "DES-CBC3-SHA",
         {
-            {SSL3_CK_RSA_DES_192_CBC3_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA, 0},
         },
         false,
     },
@@ -401,7 +401,7 @@ static const CipherTest kCipherTests[] = {
     {
         "3DES",
         {
-            {SSL3_CK_RSA_DES_192_CBC3_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA, 0},
         },
         false,
     },
@@ -410,7 +410,7 @@ static const CipherTest kCipherTests[] = {
     {
         "RSA+3DES",
         {
-            {SSL3_CK_RSA_DES_192_CBC3_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA, 0},
         },
         false,
     },
@@ -421,7 +421,7 @@ static const CipherTest kCipherTests[] = {
     {
         "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:ECDHE+3DES",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -430,7 +430,7 @@ static const CipherTest kCipherTests[] = {
     {
         "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:RSA:RSA+3DES:!RSA",
         {
-            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
         },
         false,
     },
@@ -438,11 +438,11 @@ static const CipherTest kCipherTests[] = {
     {
         "RSA:3DES:@STRENGTH",
         {
-            {TLS1_CK_RSA_WITH_AES_256_GCM_SHA384, 0},
-            {TLS1_CK_RSA_WITH_AES_256_SHA, 0},
-            {TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, 0},
-            {TLS1_CK_RSA_WITH_AES_128_SHA, 0},
-            {SSL3_CK_RSA_DES_192_CBC3_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_AES_256_GCM_SHA384, 0},
+            {SSL_CIPHER_RSA_WITH_AES_256_CBC_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA, 0},
+            {SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA, 0},
         },
         false,
     },
@@ -572,7 +572,7 @@ static bool CipherListsEqual(SSL_CTX *ctx,
 
   for (size_t i = 0; i < expected.size(); i++) {
     const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, i);
-    if (expected[i].id != SSL_CIPHER_get_id(cipher) ||
+    if (expected[i].protocol_id != SSL_CIPHER_get_protocol_id(cipher) ||
         expected[i].in_group_flag != !!SSL_CTX_cipher_in_group(ctx, i)) {
       return false;
     }
@@ -633,7 +633,7 @@ TEST(SSLTest, CipherRules) {
 
       bool found = false;
       for (const SSL_CIPHER *cipher : SSL_CTX_get_ciphers(ctx.get())) {
-        if ((TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA256 & 0xffff) ==
+        if (SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA256 ==
             SSL_CIPHER_get_protocol_id(cipher)) {
           found = true;
           break;
@@ -1183,7 +1183,7 @@ TEST(SSLTest, DefaultVersion) {
 
 TEST(SSLTest, CipherProperties) {
   static const struct {
-    int id;
+    uint16_t protocol_id;
     const char *standard_name;
     int cipher_nid;
     int digest_nid;
@@ -1192,7 +1192,7 @@ TEST(SSLTest, CipherProperties) {
     int prf_nid;
   } kTests[] = {
       {
-          SSL3_CK_RSA_DES_192_CBC3_SHA,
+          SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA,
           "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
           NID_des_ede3_cbc,
           NID_sha1,
@@ -1201,7 +1201,7 @@ TEST(SSLTest, CipherProperties) {
           NID_md5_sha1,
       },
       {
-          TLS1_CK_RSA_WITH_AES_128_SHA,
+          SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA,
           "TLS_RSA_WITH_AES_128_CBC_SHA",
           NID_aes_128_cbc,
           NID_sha1,
@@ -1210,7 +1210,7 @@ TEST(SSLTest, CipherProperties) {
           NID_md5_sha1,
       },
       {
-          TLS1_CK_PSK_WITH_AES_256_CBC_SHA,
+          SSL_CIPHER_PSK_WITH_AES_256_CBC_SHA,
           "TLS_PSK_WITH_AES_256_CBC_SHA",
           NID_aes_256_cbc,
           NID_sha1,
@@ -1219,7 +1219,7 @@ TEST(SSLTest, CipherProperties) {
           NID_md5_sha1,
       },
       {
-          TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+          SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA,
           "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
           NID_aes_128_cbc,
           NID_sha1,
@@ -1228,7 +1228,7 @@ TEST(SSLTest, CipherProperties) {
           NID_md5_sha1,
       },
       {
-          TLS1_CK_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+          SSL_CIPHER_ECDHE_RSA_WITH_AES_256_CBC_SHA,
           "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
           NID_aes_256_cbc,
           NID_sha1,
@@ -1237,7 +1237,7 @@ TEST(SSLTest, CipherProperties) {
           NID_md5_sha1,
       },
       {
-          TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+          SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
           "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
           NID_aes_128_gcm,
           NID_undef,
@@ -1246,7 +1246,7 @@ TEST(SSLTest, CipherProperties) {
           NID_sha256,
       },
       {
-          TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+          SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
           "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
           NID_aes_128_gcm,
           NID_undef,
@@ -1255,7 +1255,7 @@ TEST(SSLTest, CipherProperties) {
           NID_sha256,
       },
       {
-          TLS1_CK_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+          SSL_CIPHER_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
           "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
           NID_aes_256_gcm,
           NID_undef,
@@ -1264,7 +1264,7 @@ TEST(SSLTest, CipherProperties) {
           NID_sha384,
       },
       {
-          TLS1_CK_ECDHE_PSK_WITH_AES_128_CBC_SHA,
+          SSL_CIPHER_ECDHE_PSK_WITH_AES_128_CBC_SHA,
           "TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA",
           NID_aes_128_cbc,
           NID_sha1,
@@ -1273,7 +1273,7 @@ TEST(SSLTest, CipherProperties) {
           NID_md5_sha1,
       },
       {
-          TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+          SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
           "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
           NID_chacha20_poly1305,
           NID_undef,
@@ -1282,7 +1282,7 @@ TEST(SSLTest, CipherProperties) {
           NID_sha256,
       },
       {
-          TLS1_3_CK_AES_256_GCM_SHA384,
+          SSL_CIPHER_AES_256_GCM_SHA384,
           "TLS_AES_256_GCM_SHA384",
           NID_aes_256_gcm,
           NID_undef,
@@ -1291,7 +1291,7 @@ TEST(SSLTest, CipherProperties) {
           NID_sha384,
       },
       {
-          TLS1_3_CK_AES_128_GCM_SHA256,
+          SSL_CIPHER_AES_128_GCM_SHA256,
           "TLS_AES_128_GCM_SHA256",
           NID_aes_128_gcm,
           NID_undef,
@@ -1300,7 +1300,7 @@ TEST(SSLTest, CipherProperties) {
           NID_sha256,
       },
       {
-          TLS1_3_CK_CHACHA20_POLY1305_SHA256,
+          SSL_CIPHER_CHACHA20_POLY1305_SHA256,
           "TLS_CHACHA20_POLY1305_SHA256",
           NID_chacha20_poly1305,
           NID_undef,
@@ -1313,7 +1313,7 @@ TEST(SSLTest, CipherProperties) {
   for (const auto &t : kTests) {
     SCOPED_TRACE(t.standard_name);
 
-    const SSL_CIPHER *cipher = SSL_get_cipher_by_value(t.id & 0xffff);
+    const SSL_CIPHER *cipher = SSL_get_cipher_by_value(t.protocol_id);
     ASSERT_TRUE(cipher);
     EXPECT_STREQ(t.standard_name, SSL_CIPHER_standard_name(cipher));
 
@@ -7152,13 +7152,13 @@ class MockQUICTransport {
     }
 
     if (level != ssl_encryption_early_data &&
-        SSL_CIPHER_get_id(cipher) != levels_[level].cipher) {
+        SSL_CIPHER_get_protocol_id(cipher) != levels_[level].cipher) {
       ADD_FAILURE() << "Cipher suite inconsistent";
       return false;
     }
 
     levels_[level].read_secret.assign(secret.begin(), secret.end());
-    levels_[level].cipher = SSL_CIPHER_get_id(cipher);
+    levels_[level].cipher = SSL_CIPHER_get_protocol_id(cipher);
     return true;
   }
 
@@ -7180,7 +7180,7 @@ class MockQUICTransport {
     }
 
     levels_[level].write_secret.assign(secret.begin(), secret.end());
-    levels_[level].cipher = SSL_CIPHER_get_id(cipher);
+    levels_[level].cipher = SSL_CIPHER_get_protocol_id(cipher);
     return true;
   }
 
@@ -7285,7 +7285,7 @@ class MockQUICTransport {
     std::vector<uint8_t> write_data;
     std::vector<uint8_t> write_secret;
     std::vector<uint8_t> read_secret;
-    uint32_t cipher = 0;
+    uint16_t cipher = 0;
   };
   Level levels_[kNumQUICLevels];
 };
@@ -8820,6 +8820,8 @@ TEST(SSLTest, ConnectionPropertiesDuringRenegotiate) {
     EXPECT_EQ(SSL_version(client.get()), TLS1_2_VERSION);
     const SSL_CIPHER *cipher = SSL_get_current_cipher(client.get());
     ASSERT_TRUE(cipher);
+    EXPECT_EQ(SSL_CIPHER_get_protocol_id(cipher),
+              uint16_t{SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256});
     EXPECT_EQ(SSL_CIPHER_get_id(cipher),
               uint32_t{TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256});
     EXPECT_EQ(SSL_get_group_id(client.get()), SSL_GROUP_X25519);
