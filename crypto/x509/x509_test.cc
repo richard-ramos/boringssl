@@ -1798,8 +1798,12 @@ static bssl::UniquePtr<X509> MakeTestCert(std::string_view issuer,
   bssl::UniquePtr<X509_NAME> issuer_name = MakeTestName(issuer);
   bssl::UniquePtr<X509_NAME> subject_name = MakeTestName(subject);
   bssl::UniquePtr<X509> cert(X509_new());
+  bssl::UniquePtr<ASN1_INTEGER> serial(ASN1_INTEGER_new());
   if (issuer_name == nullptr || subject_name == nullptr || cert == nullptr ||
+      serial == nullptr ||  //
       !X509_set_version(cert.get(), X509_VERSION_3) ||
+      !ASN1_INTEGER_set_uint64(serial.get(), 42) ||
+      !X509_set_serialNumber(cert.get(), serial.get()) ||
       !X509_set_issuer_name(cert.get(), issuer_name.get()) ||
       !X509_set_subject_name(cert.get(), subject_name.get()) ||
       !X509_set_pubkey(cert.get(), key) ||
@@ -9136,30 +9140,65 @@ TEST(X509Test, NonDefaultKeyType) {
                    /*intermediates=*/{}, /*crls=*/{}));
 }
 
-// Test that |X509_set_subject_name| on an |X509_NAME| that was already the
-// subject did not break.
-TEST(X509Test, SelfSetSubjectAndIssuer) {
-  bssl::UniquePtr<EVP_PKEY> key = PrivateKeyFromPEM(kP256Key);
+// Test that no-op self-assignments on |X509| fields work.
+TEST(X509Test, SelfAssignFields) {
+  // Test with an RSA key, so that the signature algorithm contains an explicit
+  // NULL parameter (i.e. a non-nullptr |ASN1_TYPE| containing an ASN.1 NULL
+  // value), rather than an omitted parameter (i.e. a nullptr |ASN1_TYPE|). This
+  // exercises |X509_set1_signature_algo| better.
+  bssl::UniquePtr<EVP_PKEY> key = PrivateKeyFromPEM(kRSAKey);
   ASSERT_TRUE(key);
   bssl::UniquePtr<X509> cert =
       MakeTestCert("Issuer", "Subject", key.get(), /*is_ca=*/true);
+  EXPECT_TRUE(X509_sign(cert.get(), key.get(), EVP_sha256()));
 
   EXPECT_TRUE(
       X509_set_issuer_name(cert.get(), X509_get_issuer_name(cert.get())));
-  EXPECT_TRUE(
-      X509_set_subject_name(cert.get(), X509_get_subject_name(cert.get())));
-
   const X509_NAME *issuer = X509_get_issuer_name(cert.get());
   EXPECT_EQ(X509_NAME_entry_count(issuer), 1);
   const X509_NAME_ENTRY *entry = X509_NAME_get_entry(issuer, 0);
   EXPECT_EQ(OBJ_obj2nid(X509_NAME_ENTRY_get_object(entry)), NID_commonName);
   EXPECT_EQ("Issuer", ASN1StringAsView(X509_NAME_ENTRY_get_data(entry)));
 
+  EXPECT_TRUE(
+      X509_set_subject_name(cert.get(), X509_get_subject_name(cert.get())));
   const X509_NAME *subject = X509_get_subject_name(cert.get());
   EXPECT_EQ(X509_NAME_entry_count(subject), 1);
   entry = X509_NAME_get_entry(subject, 0);
   EXPECT_EQ(OBJ_obj2nid(X509_NAME_ENTRY_get_object(entry)), NID_commonName);
   EXPECT_EQ("Subject", ASN1StringAsView(X509_NAME_ENTRY_get_data(entry)));
+
+  std::string not_before_old(ASN1StringAsView(X509_get0_notBefore(cert.get())));
+  EXPECT_TRUE(X509_set1_notBefore(cert.get(), X509_get0_notBefore(cert.get())));
+  EXPECT_EQ(ASN1StringAsView(X509_get0_notBefore(cert.get())), not_before_old);
+
+  std::string not_after_old(ASN1StringAsView(X509_get0_notAfter(cert.get())));
+  EXPECT_TRUE(X509_set1_notAfter(cert.get(), X509_get0_notAfter(cert.get())));
+  EXPECT_EQ(ASN1StringAsView(X509_get0_notAfter(cert.get())), not_after_old);
+
+  long serial_old = ASN1_INTEGER_get(X509_get0_serialNumber(cert.get()));
+  EXPECT_TRUE(
+      X509_set_serialNumber(cert.get(), X509_get0_serialNumber(cert.get())));
+  EXPECT_EQ(ASN1_INTEGER_get(X509_get0_serialNumber(cert.get())), serial_old);
+
+  // X509_set1_signature_algo sets both the TBSCertificate and Certificate copy
+  // of the signature algorithm.
+  EXPECT_TRUE(
+      X509_set1_signature_algo(cert.get(), X509_get0_tbs_sigalg(cert.get())));
+  const ASN1_OBJECT *obj;
+  int param_type;
+  X509_ALGOR_get0(&obj, &param_type, /*out_param_value=*/nullptr,
+                  X509_get0_tbs_sigalg(cert.get()));
+  EXPECT_EQ(OBJ_obj2nid(obj), NID_sha256WithRSAEncryption);
+  EXPECT_EQ(param_type, V_ASN1_NULL);
+
+  const X509_ALGOR *alg;
+  X509_get0_signature(nullptr, &alg, cert.get());
+  EXPECT_TRUE(X509_set1_signature_algo(cert.get(), alg));
+  X509_get0_signature(nullptr, &alg, cert.get());
+  X509_ALGOR_get0(&obj, &param_type, /*out_param_value=*/nullptr, alg);
+  EXPECT_EQ(OBJ_obj2nid(obj), NID_sha256WithRSAEncryption);
+  EXPECT_EQ(param_type, V_ASN1_NULL);
 }
 
 }  // namespace
