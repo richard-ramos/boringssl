@@ -21,6 +21,12 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <functional>
+#include <memory>
+#include <vector>
+
+#include <openssl/span.h>
+
 #include "../../../../crypto/internal.h"
 #include "modulewrapper.h"
 
