@@ -304,6 +304,10 @@ X509_NAME *d2i_X509_NAME(X509_NAME **out, const uint8_t **inp, long len) {
 }
 
 int i2d_X509_NAME(const X509_NAME *in, uint8_t **outp) {
+  if (in == nullptr) {
+    OPENSSL_PUT_ERROR(X509, ERR_R_PASSED_NULL_PARAMETER);
+    return -1;
+  }
   const X509_NAME_CACHE *cache = x509_name_get_cache(in);
   if (cache == nullptr) {
     return -1;
