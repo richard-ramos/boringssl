@@ -604,11 +604,11 @@ const EVP_HPKE_KEM *EVP_hpke_p256_hkdf_sha256(void) {
   return &kKEM;
 }
 
-#define XWING_PRIVATE_KEY_LEN 32
-#define XWING_PUBLIC_KEY_LEN 1216
-#define XWING_PUBLIC_VALUE_LEN 1120
+#define XWING_PRIVATE_KEY_LEN XWING_PRIVATE_KEY_BYTES
+#define XWING_PUBLIC_KEY_LEN XWING_PUBLIC_KEY_BYTES
+#define XWING_PUBLIC_VALUE_LEN XWING_CIPHERTEXT_BYTES
 #define XWING_SEED_LEN 64
-#define XWING_SHARED_KEY_LEN 32
+#define XWING_SHARED_KEY_LEN XWING_SHARED_SECRET_BYTES
 
 static int xwing_init_key(EVP_HPKE_KEY *key, const uint8_t *priv_key,
                           size_t priv_key_len) {
