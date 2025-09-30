@@ -28,6 +28,16 @@ extern "C" {
 #define SSL2_MT_CLIENT_HELLO 1
 #define SSL2_VERSION 0x0002
 
+// The following constants are equal to TLS cipher suite values, OR-d with
+// 0x03000000. This is part of OpenSSL's SSL 2.0 legacy. SSL 2.0 has long since
+// been removed from BoringSSL.
+// TODO(davidben): Define these in terms of |SSL_CIPHER_*| constants. The
+// challenge is that existing code expects them to be defined in ssl3.h, so we
+// must first merge ssl3.h into ssl.h.
+#define SSL3_CK_RSA_DES_192_CBC3_SHA 0x0300000A
+#define SSL3_CK_SCSV 0x030000FF
+#define SSL3_CK_FALLBACK_SCSV 0x03005600
+
 // The following cipher suites are not implemented by BoringSSL. The constants
 // are defined for backwards compatibility. Cipher suites implemented in
 // BoringSSL are defined in ssl.h.
