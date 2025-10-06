@@ -199,6 +199,12 @@ extern "C" {
 #define TLS1_3_CK_AES_256_GCM_SHA384 0x03001302
 #define TLS1_3_CK_CHACHA20_POLY1305_SHA256 0x03001303
 
+// The following constants are legacy aliases of |TLS1_3_CK_*|.
+// TODO(davidben): Migrate callers to the new name and remove these.
+#define TLS1_CK_AES_128_GCM_SHA256 TLS1_3_CK_AES_128_GCM_SHA256
+#define TLS1_CK_AES_256_GCM_SHA384 TLS1_3_CK_AES_256_GCM_SHA384
+#define TLS1_CK_CHACHA20_POLY1305_SHA256 TLS1_3_CK_CHACHA20_POLY1305_SHA256
+
 // XXX
 // Inconsistency alert:
 // The OpenSSL names of ciphers with ephemeral DH here include the string
