@@ -237,12 +237,6 @@ extern "C" {
 #define TLS1_3_RFC_AES_256_GCM_SHA384 "TLS_AES_256_GCM_SHA384"
 #define TLS1_3_RFC_CHACHA20_POLY1305_SHA256 "TLS_CHACHA20_POLY1305_SHA256"
 
-// The following constants are legacy aliases of |TLS1_3_CK_*|.
-// TODO(bbe): Migrate callers to the new name and remove these.
-#define TLS1_TXT_AES_128_GCM_SHA256 TLS1_3_RFC_AES_128_GCM_SHA256
-#define TLS1_TXT_AES_256_GCM_SHA384 TLS1_3_RFC_AES_256_GCM_SHA384
-#define TLS1_TXT_CHACHA20_POLY1305_SHA256 TLS1_3_RFC_CHACHA20_POLY1305_SHA256
-
 #define TLS_CT_RSA_SIGN 1
 #define TLS_CT_DSS_SIGN 2
 #define TLS_CT_RSA_FIXED_DH 3
@@ -250,8 +244,6 @@ extern "C" {
 #define TLS_CT_ECDSA_SIGN 64
 #define TLS_CT_RSA_FIXED_ECDH 65
 #define TLS_CT_ECDSA_FIXED_ECDH 66
-
-#define TLS_MD_MAX_CONST_SIZE 20
 
 
 #ifdef __cplusplus
