@@ -464,7 +464,11 @@ extern "C" {
 		fmt.Fprintf(&b, "\n")
 	}
 
-	fmt.Fprintf(&b, `
+	fmt.Fprintf(&b, `// NID_MLKEM1024 is a legacy alias for NID_ML_KEM_1024.
+// TODO(crbug.com/449751916): Migrate existing uses and remove this.
+#define NID_MLKEM1024 NID_ML_KEM_1024
+
+
 #if defined(__cplusplus)
 }  /* extern C */
 #endif
