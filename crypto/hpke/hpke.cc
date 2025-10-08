@@ -725,15 +725,15 @@ namespace {
 template <uint16_t KEM_ID, size_t PUBLIC_KEY_BYTES, size_t CIPHERTEXT_BYTES,
           size_t ENCAP_ENTROPY_BYTES,
 
-          typename PrivateKey, typename PublicKey, typename BCMPublicKey,
+          typename PrivateKey, typename PublicKey,
 
           int (*PrivateKeyFromSeed)(PrivateKey *, const uint8_t *, size_t),
           void (*PublicFromPrivate)(PublicKey *, const PrivateKey *),
           int (*MarshalPublicKey)(CBB *, const PublicKey *),
           void (*GenerateKey)(uint8_t *, uint8_t *, PrivateKey *),
-          bcm_status (*BCMParsePublicKey)(BCMPublicKey *, CBS *),
+          int (*ParsePublicKey)(PublicKey *, CBS *),
           bcm_infallible (*BCMEncapExternalEntropy)(
-              uint8_t *, uint8_t *, const BCMPublicKey *, const uint8_t *),
+              uint8_t *, uint8_t *, const PublicKey *, const uint8_t *),
           int (*Decap)(uint8_t *, const uint8_t *, size_t, const PrivateKey *)>
 struct MLKEMHPKE {
   // These sizes are common across both ML-KEM-768 and ML-KEM-1024.
@@ -797,8 +797,8 @@ struct MLKEMHPKE {
 
     CBS cbs;
     CBS_init(&cbs, peer_public_key, peer_public_key_len);
-    BCMPublicKey public_key;
-    if (!bcm_success(BCMParsePublicKey(&public_key, &cbs))) {
+    PublicKey public_key;
+    if (!ParsePublicKey(&public_key, &cbs)) {
       OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
       return 0;
     }
@@ -835,24 +835,22 @@ using MLKEM768HPKE =
               MLKEM768_CIPHERTEXT_BYTES, BCM_MLKEM_ENCAP_ENTROPY,
 
               MLKEM768_private_key, MLKEM768_public_key,
-              BCM_mlkem768_public_key,
 
               MLKEM768_private_key_from_seed, MLKEM768_public_from_private,
               MLKEM768_marshal_public_key, MLKEM768_generate_key,
-              BCM_mlkem768_parse_public_key,
-              BCM_mlkem768_encap_external_entropy, MLKEM768_decap>;
+              MLKEM768_parse_public_key, BCM_mlkem768_encap_external_entropy,
+              MLKEM768_decap>;
 
 using MLKEM1024HPKE =
     MLKEMHPKE<EVP_HPKE_MLKEM1024, MLKEM1024_PUBLIC_KEY_BYTES,
               MLKEM1024_CIPHERTEXT_BYTES, BCM_MLKEM_ENCAP_ENTROPY,
 
               MLKEM1024_private_key, MLKEM1024_public_key,
-              BCM_mlkem1024_public_key,
 
               MLKEM1024_private_key_from_seed, MLKEM1024_public_from_private,
               MLKEM1024_marshal_public_key, MLKEM1024_generate_key,
-              BCM_mlkem1024_parse_public_key,
-              BCM_mlkem1024_encap_external_entropy, MLKEM1024_decap>;
+              MLKEM1024_parse_public_key, BCM_mlkem1024_encap_external_entropy,
+              MLKEM1024_decap>;
 
 template <typename MLKEM>
 static const EVP_HPKE_KEM kMLKEM = {
