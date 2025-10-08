@@ -15,9 +15,9 @@
 #ifndef OPENSSL_HEADER_CRYPTO_FIPSMODULE_BCM_INTERFACE_H
 #define OPENSSL_HEADER_CRYPTO_FIPSMODULE_BCM_INTERFACE_H
 
-// For the moment, we reach out for AES_KEY.
 #include <openssl/aes.h>
-#include <openssl/bcm_public.h>
+#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 
 // This header will eventually become the interface between BCM and the
@@ -97,24 +97,20 @@ bcm_infallible BCM_rand_bytes_with_additional_data(
 
 // SHA-1
 
-// BCM_SHA_DIGEST_LENGTH is the length of a SHA-1 digest.
-#define BCM_SHA_DIGEST_LENGTH 20
-
 // BCM_sha1_init initialises |sha|.
 bcm_infallible BCM_sha1_init(SHA_CTX *sha);
 
-// BCM_SHA1_transform is a low-level function that performs a single, SHA-1
+// SHA1_transform is a low-level function that performs a single, SHA-1
 // block transformation using the state from |sha| and |SHA_CBLOCK| bytes from
 // |block|.
-bcm_infallible BCM_sha1_transform(SHA_CTX *c,
-                                  const uint8_t data[BCM_SHA_CBLOCK]);
+bcm_infallible BCM_sha1_transform(SHA_CTX *c, const uint8_t data[SHA_CBLOCK]);
 
 // BCM_sha1_update adds |len| bytes from |data| to |sha|.
 bcm_infallible BCM_sha1_update(SHA_CTX *c, const void *data, size_t len);
 
 // BCM_sha1_final adds the final padding to |sha| and writes the resulting
 // digest to |out|, which must have at least |SHA_DIGEST_LENGTH| bytes of space.
-bcm_infallible BCM_sha1_final(uint8_t out[BCM_SHA_DIGEST_LENGTH], SHA_CTX *c);
+bcm_infallible BCM_sha1_final(uint8_t out[SHA_DIGEST_LENGTH], SHA_CTX *c);
 
 
 // BCM_fips_186_2_prf derives |out_len| bytes from |xkey| using the PRF
@@ -131,13 +127,10 @@ bcm_infallible BCM_sha1_final(uint8_t out[BCM_SHA_DIGEST_LENGTH], SHA_CTX *c);
 // in new protocols. It is provided for compatibility with some legacy EAP
 // methods.
 bcm_infallible BCM_fips_186_2_prf(uint8_t *out, size_t out_len,
-                                  const uint8_t xkey[BCM_SHA_DIGEST_LENGTH]);
+                                  const uint8_t xkey[SHA_DIGEST_LENGTH]);
 
 
 // SHA-224
-
-// SHA224_DIGEST_LENGTH is the length of a SHA-224 digest.
-#define BCM_SHA224_DIGEST_LENGTH 28
 
 // BCM_sha224_unit initialises |sha|.
 bcm_infallible BCM_sha224_init(SHA256_CTX *sha);
@@ -148,14 +141,11 @@ bcm_infallible BCM_sha224_update(SHA256_CTX *sha, const void *data, size_t len);
 // BCM_sha224_final adds the final padding to |sha| and writes the resulting
 // digest to |out|, which must have at least |SHA224_DIGEST_LENGTH| bytes of
 // space. It aborts on programmer error.
-bcm_infallible BCM_sha224_final(uint8_t out[BCM_SHA224_DIGEST_LENGTH],
+bcm_infallible BCM_sha224_final(uint8_t out[SHA224_DIGEST_LENGTH],
                                 SHA256_CTX *sha);
 
 
 // SHA-256
-
-// BCM_SHA256_DIGEST_LENGTH is the length of a SHA-256 digest.
-#define BCM_SHA256_DIGEST_LENGTH 32
 
 // BCM_sha256_init initialises |sha|.
 bcm_infallible BCM_sha256_init(SHA256_CTX *sha);
@@ -164,29 +154,26 @@ bcm_infallible BCM_sha256_init(SHA256_CTX *sha);
 bcm_infallible BCM_sha256_update(SHA256_CTX *sha, const void *data, size_t len);
 
 // BCM_sha256_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |BCM_SHA256_DIGEST_LENGTH| bytes of
+// digest to |out|, which must have at least |SHA256_DIGEST_LENGTH| bytes of
 // space. It aborts on programmer error.
-bcm_infallible BCM_sha256_final(uint8_t out[BCM_SHA256_DIGEST_LENGTH],
+bcm_infallible BCM_sha256_final(uint8_t out[SHA256_DIGEST_LENGTH],
                                 SHA256_CTX *sha);
 
 // BCM_sha256_transform is a low-level function that performs a single, SHA-256
-// block transformation using the state from |sha| and |BCM_SHA256_CBLOCK| bytes
+// block transformation using the state from |sha| and |SHA256_CBLOCK| bytes
 // from |block|.
 bcm_infallible BCM_sha256_transform(SHA256_CTX *sha,
-                                    const uint8_t block[BCM_SHA256_CBLOCK]);
+                                    const uint8_t block[SHA256_CBLOCK]);
 
 // BCM_sha256_transform_blocks is a low-level function that takes |num_blocks| *
-// |BCM_SHA256_CBLOCK| bytes of data and performs SHA-256 transforms on it to
-// update |state|.
+// |SHA256_CBLOCK| bytes of data and performs SHA-256 transforms on it to update
+// |state|.
 bcm_infallible BCM_sha256_transform_blocks(uint32_t state[8],
                                            const uint8_t *data,
                                            size_t num_blocks);
 
 
 // SHA-384.
-
-// BCM_SHA384_DIGEST_LENGTH is the length of a SHA-384 digest.
-#define BCM_SHA384_DIGEST_LENGTH 48
 
 // BCM_sha384_init initialises |sha|.
 bcm_infallible BCM_sha384_init(SHA512_CTX *sha);
@@ -195,16 +182,13 @@ bcm_infallible BCM_sha384_init(SHA512_CTX *sha);
 bcm_infallible BCM_sha384_update(SHA512_CTX *sha, const void *data, size_t len);
 
 // BCM_sha384_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |BCM_sha384_DIGEST_LENGTH| bytes of
+// digest to |out|, which must have at least |SHA384_DIGEST_LENGTH| bytes of
 // space. It may abort on programmer error.
-bcm_infallible BCM_sha384_final(uint8_t out[BCM_SHA384_DIGEST_LENGTH],
+bcm_infallible BCM_sha384_final(uint8_t out[SHA384_DIGEST_LENGTH],
                                 SHA512_CTX *sha);
 
 
 // SHA-512.
-
-// BCM_SHA512_DIGEST_LENGTH is the length of a SHA-512 digest.
-#define BCM_SHA512_DIGEST_LENGTH 64
 
 // BCM_sha512_init initialises |sha|.
 bcm_infallible BCM_sha512_init(SHA512_CTX *sha);
@@ -213,23 +197,21 @@ bcm_infallible BCM_sha512_init(SHA512_CTX *sha);
 bcm_infallible BCM_sha512_update(SHA512_CTX *sha, const void *data, size_t len);
 
 // BCM_sha512_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |BCM_sha512_DIGEST_LENGTH| bytes of
+// digest to |out|, which must have at least |SHA512_DIGEST_LENGTH| bytes of
 // space.
-bcm_infallible BCM_sha512_final(uint8_t out[BCM_SHA512_DIGEST_LENGTH],
+bcm_infallible BCM_sha512_final(uint8_t out[SHA512_DIGEST_LENGTH],
                                 SHA512_CTX *sha);
 
 // BCM_sha512_transform is a low-level function that performs a single, SHA-512
-// block transformation using the state from |sha| and |BCM_sha512_CBLOCK| bytes
+// block transformation using the state from |sha| and |SHA512_CBLOCK| bytes
 // from |block|.
 bcm_infallible BCM_sha512_transform(SHA512_CTX *sha,
-                                    const uint8_t block[BCM_SHA512_CBLOCK]);
+                                    const uint8_t block[SHA512_CBLOCK]);
 
 
 // SHA-512-256
 //
 // See https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf section 5.3.6
-
-#define BCM_SHA512_256_DIGEST_LENGTH 32
 
 // BCM_sha512_256_init initialises |sha|.
 bcm_infallible BCM_sha512_256_init(SHA512_CTX *sha);
@@ -239,9 +221,9 @@ bcm_infallible BCM_sha512_256_update(SHA512_CTX *sha, const void *data,
                                      size_t len);
 
 // BCM_sha512_256_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |BCM_sha512_256_DIGEST_LENGTH|
-// bytes of space. It may abort on programmer error.
-bcm_infallible BCM_sha512_256_final(uint8_t out[BCM_SHA512_256_DIGEST_LENGTH],
+// digest to |out|, which must have at least |SHA512_256_DIGEST_LENGTH| bytes of
+// space. It may abort on programmer error.
+bcm_infallible BCM_sha512_256_final(uint8_t out[SHA512_256_DIGEST_LENGTH],
                                     SHA512_CTX *sha);
 
 
