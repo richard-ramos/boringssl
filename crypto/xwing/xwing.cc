@@ -29,13 +29,15 @@ struct private_key {
   uint8_t seed[XWING_PRIVATE_KEY_BYTES];
 };
 
-static struct private_key *private_key_from_external(
+static_assert(sizeof(XWING_private_key) == sizeof(private_key));
+static_assert(alignof(XWING_private_key) == alignof(private_key));
+
+static const private_key *private_key_from_external(
     const XWING_private_key *external) {
-  static_assert(sizeof(XWING_private_key) == sizeof(private_key),
-                "XWING private key size is incorrect");
-  static_assert(alignof(XWING_private_key) == alignof(private_key),
-                "XWING private key alignment is incorrect");
-  return (private_key *)external;
+  return reinterpret_cast<const private_key *>(external);
+}
+static private_key *private_key_from_external(XWING_private_key *external) {
+  return reinterpret_cast<private_key *>(external);
 }
 
 static void xwing_expand_private_key(private_key *inout_private_key) {

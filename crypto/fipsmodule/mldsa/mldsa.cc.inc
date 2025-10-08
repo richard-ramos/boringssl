@@ -1998,81 +1998,86 @@ int mldsa_verify_internal(const public_key<K> *pub,
       context, context_len);
 }
 
-private_key<6, 5> *private_key_from_external_65(
+static_assert(sizeof(MLDSA65_private_key) == sizeof(private_key<6, 5>));
+static_assert(alignof(MLDSA65_private_key) == alignof(private_key<6, 5>));
+
+const private_key<6, 5> *private_key_from_external_65(
     const MLDSA65_private_key *external) {
-  static_assert(sizeof(MLDSA65_private_key) == sizeof(private_key<6, 5>),
-                "MLDSA65 private key size incorrect");
-  static_assert(alignof(MLDSA65_private_key) == alignof(private_key<6, 5>),
-                "MLDSA65 private key alignment incorrect");
-  return (private_key<6, 5> *)external;
+  return reinterpret_cast<const private_key<6, 5> *>(external);
+}
+private_key<6, 5> *private_key_from_external_65(MLDSA65_private_key *external) {
+  return reinterpret_cast<private_key<6, 5> *>(external);
 }
 
-public_key<6> *public_key_from_external_65(const MLDSA65_public_key *external) {
-  static_assert(sizeof(MLDSA65_public_key) == sizeof(public_key<6>),
-                "MLDSA65 public key size incorrect");
-  static_assert(alignof(MLDSA65_public_key) == alignof(public_key<6>),
-                "MLDSA65 public key alignment incorrect");
-  return (public_key<6> *)external;
+static_assert(sizeof(MLDSA65_public_key) == sizeof(public_key<6>));
+static_assert(alignof(MLDSA65_public_key) == alignof(public_key<6>));
+
+const public_key<6> *public_key_from_external_65(
+    const MLDSA65_public_key *external) {
+  return reinterpret_cast<const public_key<6> *>(external);
+}
+public_key<6> *public_key_from_external_65(MLDSA65_public_key *external) {
+  return reinterpret_cast<public_key<6> *>(external);
 }
 
-struct prehash_context *prehash_context_from_external_65(
-    MLDSA65_prehash *external) {
-  static_assert(sizeof(MLDSA65_prehash) == sizeof(prehash_context),
-                "MLDSA pre-hash context size incorrect");
-  static_assert(alignof(MLDSA65_prehash) == alignof(prehash_context),
-                "MLDSA pre-hash context alignment incorrect");
+prehash_context *prehash_context_from_external_65(MLDSA65_prehash *external) {
+  static_assert(sizeof(MLDSA65_prehash) == sizeof(prehash_context));
+  static_assert(alignof(MLDSA65_prehash) == alignof(prehash_context));
   return reinterpret_cast<prehash_context *>(external);
 }
 
-private_key<8, 7> *private_key_from_external_87(
+static_assert(sizeof(MLDSA87_private_key) == sizeof(private_key<8, 7>));
+static_assert(alignof(MLDSA87_private_key) == alignof(private_key<8, 7>));
+const private_key<8, 7> *private_key_from_external_87(
     const MLDSA87_private_key *external) {
-  static_assert(sizeof(MLDSA87_private_key) == sizeof(private_key<8, 7>),
-                "MLDSA87 private key size incorrect");
-  static_assert(alignof(MLDSA87_private_key) == alignof(private_key<8, 7>),
-                "MLDSA87 private key alignment incorrect");
-  return (private_key<8, 7> *)external;
+  return reinterpret_cast<const private_key<8, 7> *>(external);
+}
+private_key<8, 7> *private_key_from_external_87(MLDSA87_private_key *external) {
+  return reinterpret_cast<private_key<8, 7> *>(external);
 }
 
-public_key<8> *public_key_from_external_87(const MLDSA87_public_key *external) {
-  static_assert(sizeof(MLDSA87_public_key) == sizeof(public_key<8>),
-                "MLDSA87 public key size incorrect");
-  static_assert(alignof(MLDSA87_public_key) == alignof(public_key<8>),
-                "MLDSA87 public key alignment incorrect");
-  return (public_key<8> *)external;
+static_assert(sizeof(MLDSA87_public_key) == sizeof(public_key<8>));
+static_assert(alignof(MLDSA87_public_key) == alignof(public_key<8>));
+
+const public_key<8> *public_key_from_external_87(
+    const MLDSA87_public_key *external) {
+  return reinterpret_cast<const public_key<8> *>(external);
+}
+public_key<8> *public_key_from_external_87(MLDSA87_public_key *external) {
+  return reinterpret_cast<public_key<8> *>(external);
 }
 
-struct prehash_context *prehash_context_from_external_87(
-    MLDSA87_prehash *external) {
-  static_assert(sizeof(MLDSA87_prehash) == sizeof(prehash_context),
-                "MLDSA pre-hash context size incorrect");
-  static_assert(alignof(MLDSA87_prehash) == alignof(prehash_context),
-                "MLDSA pre-hash context alignment incorrect");
+prehash_context *prehash_context_from_external_87(MLDSA87_prehash *external) {
+  static_assert(sizeof(MLDSA87_prehash) == sizeof(prehash_context));
+  static_assert(alignof(MLDSA87_prehash) == alignof(prehash_context));
   return reinterpret_cast<prehash_context *>(external);
 }
 
-private_key<4, 4> *private_key_from_external_44(
+static_assert(sizeof(MLDSA44_private_key) == sizeof(private_key<4, 4>));
+static_assert(alignof(MLDSA44_private_key) == alignof(private_key<4, 4>));
+
+const private_key<4, 4> *private_key_from_external_44(
     const MLDSA44_private_key *external) {
-  static_assert(sizeof(MLDSA44_private_key) == sizeof(private_key<4, 4>),
-                "MLDSA44 private key size incorrect");
-  static_assert(alignof(MLDSA44_private_key) == alignof(private_key<4, 4>),
-                "MLDSA44 private key alignment incorrect");
-  return (private_key<4, 4> *)external;
+  return reinterpret_cast<const private_key<4, 4> *>(external);
+}
+private_key<4, 4> *private_key_from_external_44(MLDSA44_private_key *external) {
+  return reinterpret_cast<private_key<4, 4> *>(external);
 }
 
-public_key<4> *public_key_from_external_44(const MLDSA44_public_key *external) {
-  static_assert(sizeof(MLDSA44_public_key) == sizeof(public_key<4>),
-                "MLDSA44 public key size incorrect");
-  static_assert(alignof(MLDSA44_public_key) == alignof(public_key<4>),
-                "MLDSA44 public key alignment incorrect");
-  return (public_key<4> *)external;
+static_assert(sizeof(MLDSA44_public_key) == sizeof(public_key<4>));
+static_assert(alignof(MLDSA44_public_key) == alignof(public_key<4>));
+
+const public_key<4> *public_key_from_external_44(
+    const MLDSA44_public_key *external) {
+  return reinterpret_cast<const public_key<4> *>(external);
+}
+public_key<4> *public_key_from_external_44(MLDSA44_public_key *external) {
+  return reinterpret_cast<public_key<4> *>(external);
 }
 
-struct prehash_context *prehash_context_from_external_44(
-    MLDSA44_prehash *external) {
-  static_assert(sizeof(MLDSA44_prehash) == sizeof(prehash_context),
-                "MLDSA pre-hash context size incorrect");
-  static_assert(alignof(MLDSA44_prehash) == alignof(prehash_context),
-                "MLDSA pre-hash context alignment incorrect");
+prehash_context *prehash_context_from_external_44(MLDSA44_prehash *external) {
+  static_assert(sizeof(MLDSA44_prehash) == sizeof(prehash_context));
+  static_assert(alignof(MLDSA44_prehash) == alignof(prehash_context));
   return reinterpret_cast<prehash_context *>(external);
 }
 

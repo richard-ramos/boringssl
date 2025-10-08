@@ -870,41 +870,52 @@ int mlkem_marshal_private_key(CBB *out, const private_key<RANK> *priv) {
   return 1;
 }
 
-public_key<RANK768> *public_key_768_from_external(
+static_assert(sizeof(MLKEM768_public_key) >= sizeof(public_key<RANK768>));
+static_assert(alignof(MLKEM768_public_key) >= alignof(public_key<RANK768>));
+
+const public_key<RANK768> *public_key_768_from_external(
     const MLKEM768_public_key *external) {
-  static_assert(sizeof(MLKEM768_public_key) >= sizeof(public_key<RANK768>),
-                "MLKEM public key is too small");
-  static_assert(alignof(MLKEM768_public_key) >= alignof(public_key<RANK768>),
-                "MLKEM public key alignment incorrect");
-  return (public_key<RANK768> *)external;
+  return reinterpret_cast<const public_key<RANK768> *>(external);
+}
+public_key<RANK768> *public_key_768_from_external(
+    MLKEM768_public_key *external) {
+  return reinterpret_cast<public_key<RANK768> *>(external);
 }
 
-static public_key<RANK1024> *public_key_1024_from_external(
+static_assert(sizeof(MLKEM1024_public_key) >= sizeof(public_key<RANK1024>));
+static_assert(alignof(MLKEM1024_public_key) >= alignof(public_key<RANK1024>));
+
+const public_key<RANK1024> *public_key_1024_from_external(
     const MLKEM1024_public_key *external) {
-  static_assert(sizeof(MLKEM1024_public_key) >= sizeof(public_key<RANK1024>),
-                "MLKEM1024 public key is too small");
-  static_assert(alignof(MLKEM1024_public_key) >= alignof(public_key<RANK1024>),
-                "MLKEM1024 public key alignment incorrect");
-  return (public_key<RANK1024> *)external;
+  return reinterpret_cast<const public_key<RANK1024> *>(external);
+}
+public_key<RANK1024> *public_key_1024_from_external(
+    MLKEM1024_public_key *external) {
+  return reinterpret_cast<public_key<RANK1024> *>(external);
 }
 
-private_key<RANK768> *private_key_768_from_external(
+static_assert(sizeof(MLKEM768_private_key) >= sizeof(private_key<RANK768>));
+static_assert(alignof(MLKEM768_private_key) >= alignof(private_key<RANK768>));
+
+const private_key<RANK768> *private_key_768_from_external(
     const MLKEM768_private_key *external) {
-  static_assert(sizeof(MLKEM768_private_key) >= sizeof(private_key<RANK768>),
-                "MLKEM private key too small");
-  static_assert(alignof(MLKEM768_private_key) >= alignof(private_key<RANK768>),
-                "MLKEM private key alignment incorrect");
-  return (private_key<RANK768> *)external;
+  return reinterpret_cast<const private_key<RANK768> *>(external);
+}
+private_key<RANK768> *private_key_768_from_external(
+    MLKEM768_private_key *external) {
+  return reinterpret_cast<private_key<RANK768> *>(external);
 }
 
-private_key<RANK1024> *private_key_1024_from_external(
+static_assert(sizeof(MLKEM1024_private_key) >= sizeof(private_key<RANK1024>));
+static_assert(alignof(MLKEM1024_private_key) >= alignof(private_key<RANK1024>));
+
+const private_key<RANK1024> *private_key_1024_from_external(
     const MLKEM1024_private_key *external) {
-  static_assert(sizeof(MLKEM1024_private_key) >= sizeof(private_key<RANK1024>),
-                "MLKEM1024 private key too small");
-  static_assert(
-      alignof(MLKEM1024_private_key) >= alignof(private_key<RANK1024>),
-      "MLKEM1024 private key alignment incorrect");
-  return (private_key<RANK1024> *)external;
+  return reinterpret_cast<const private_key<RANK1024> *>(external);
+}
+private_key<RANK1024> *private_key_1024_from_external(
+    MLKEM1024_private_key *external) {
+  return reinterpret_cast<private_key<RANK1024> *>(external);
 }
 
 // See section 6.2.
@@ -1062,7 +1073,7 @@ void ensure_decap_self_test(void) {}
 }  // namespace mlkem
 
 bcm_status BCM_mlkem768_check_fips(const MLKEM768_private_key *private_key) {
-  mlkem::private_key<RANK768> *priv =
+  const mlkem::private_key<RANK768> *priv =
       mlkem::private_key_768_from_external(private_key);
 
   const uint8_t entropy[BCM_MLKEM_ENCAP_ENTROPY] = {1, 2, 3, 4};
@@ -1125,7 +1136,7 @@ bcm_status BCM_mlkem768_private_key_from_seed(
 }
 
 bcm_status BCM_mlkem1024_check_fips(const MLKEM1024_private_key *private_key) {
-  mlkem::private_key<RANK1024> *priv =
+  const mlkem::private_key<RANK1024> *priv =
       mlkem::private_key_1024_from_external(private_key);
 
   const uint8_t entropy[BCM_MLKEM_ENCAP_ENTROPY] = {1, 2, 3, 4};
