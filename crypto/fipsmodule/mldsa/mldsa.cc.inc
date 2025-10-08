@@ -24,6 +24,7 @@
 #include <openssl/rand.h>
 
 #include "../../internal.h"
+#include "../../mem_internal.h"
 #include "../bcm_interface.h"
 #include "../keccak/internal.h"
 
@@ -1591,11 +1592,6 @@ int mldsa_parse_signature(signature<K, L> *sign, CBS *in) {
   return 1;
 }
 
-template <typename T>
-struct DeleterFree {
-  void operator()(T *ptr) { OPENSSL_free(ptr); }
-};
-
 // FIPS 204, Algorithm 6 (`ML-DSA.KeyGen_internal`). Returns 1 on success and 0
 // on failure.
 template <int K, int L>
@@ -1604,15 +1600,15 @@ int mldsa_generate_key_external_entropy_no_self_test(
     private_key<K, L> *priv, const uint8_t entropy[MLDSA_SEED_BYTES]) {
   // Intermediate values, allocated on the heap to allow use when there is a
   // limited amount of stack.
-  struct values_st {
+  struct Values {
+    enum { kAllowUniquePtr = true };
     public_key<K> pub;
     matrix<K, L> a_ntt;
     vector<L> s1_ntt;
     vector<K> t;
   };
-  std::unique_ptr<values_st, DeleterFree<values_st>> values(
-      reinterpret_cast<values_st *>(OPENSSL_malloc(sizeof(values_st))));
-  if (values == NULL) {
+  auto values = bssl::MakeUnique<Values>();
+  if (values == nullptr) {
     return 0;
   }
 
@@ -1675,15 +1671,15 @@ int mldsa_public_from_private(public_key<K> *pub,
                               const private_key<K, L> *priv) {
   // Intermediate values, allocated on the heap to allow use when there is a
   // limited amount of stack.
-  struct values_st {
+  struct Values {
+    enum { kAllowUniquePtr = true };
     matrix<K, L> a_ntt;
     vector<L> s1_ntt;
     vector<K> t;
     vector<K> t0;
   };
-  std::unique_ptr<values_st, DeleterFree<values_st>> values(
-      reinterpret_cast<values_st *>(OPENSSL_malloc(sizeof(values_st))));
-  if (values == NULL) {
+  auto values = bssl::MakeUnique<Values>();
+  if (values == nullptr) {
     return 0;
   }
 
@@ -1724,7 +1720,8 @@ int mldsa_sign_mu(
 
   // Intermediate values, allocated on the heap to allow use when there is a
   // limited amount of stack.
-  struct values_st {
+  struct Values {
+    enum { kAllowUniquePtr = true };
     signature<K, L> sign;
     vector<L> s1_ntt;
     vector<K> s2_ntt;
@@ -1736,9 +1733,8 @@ int mldsa_sign_mu(
     vector<L> cs1;
     vector<K> cs2;
   };
-  std::unique_ptr<values_st, DeleterFree<values_st>> values(
-      reinterpret_cast<values_st *>(OPENSSL_malloc(sizeof(values_st))));
-  if (values == NULL) {
+  auto values = bssl::MakeUnique<Values>();
+  if (values == nullptr) {
     return 0;
   }
   OPENSSL_memcpy(&values->s1_ntt, &priv->s1, sizeof(values->s1_ntt));
@@ -1920,16 +1916,16 @@ int mldsa_verify_internal_no_self_test(
     const uint8_t *context, size_t context_len) {
   // Intermediate values, allocated on the heap to allow use when there is a
   // limited amount of stack.
-  struct values_st {
+  struct Values {
+    enum { kAllowUniquePtr = true };
     signature<K, L> sign;
     matrix<K, L> a_ntt;
     vector<L> z_ntt;
     vector<K> az_ntt;
     vector<K> ct1_ntt;
   };
-  std::unique_ptr<values_st, DeleterFree<values_st>> values(
-      reinterpret_cast<values_st *>(OPENSSL_malloc(sizeof(values_st))));
-  if (values == NULL) {
+  auto values = bssl::MakeUnique<Values>();
+  if (values == nullptr) {
     return 0;
   }
 
@@ -2150,14 +2146,14 @@ static int sign_self_test() {
 }
 
 static int verify_self_test() {
-  struct values_st {
+  struct Values {
+    enum { kAllowUniquePtr = true };
     private_key<6, 5> priv;
     public_key<6> pub;
     uint8_t pub_bytes[MLDSA65_PUBLIC_KEY_BYTES];
   };
-  std::unique_ptr<values_st, DeleterFree<values_st>> values(
-      reinterpret_cast<values_st *>(OPENSSL_malloc(sizeof(values_st))));
-  if (!values) {
+  auto values = bssl::MakeUnique<Values>();
+  if (values == nullptr) {
     return 0;
   }
 
