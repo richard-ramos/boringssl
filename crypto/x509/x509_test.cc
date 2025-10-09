@@ -8977,6 +8977,9 @@ TEST(X509Test, VerifyUnusualTBSCert) {
       // A FALSE critical bit is encoded instead of omitted as DEFAULT.
       // TODO(crbug.com/442221114): The parser should reject this.
       "crypto/x509/test/unusual_tbs_critical_false_not_omitted.pem",
+      // Empty extension instead of omitting the entire field.
+      // TODO(crbug.com/442221114): The parser should reject this.
+      "crypto/x509/test/unusual_tbs_empty_extension_not_omitted.pem",
       // ecdsa-with-SHA256 AlgorithmIdentifier parameters are NULL instead of
       // omitted. We accept this due to b/167375496.
       "crypto/x509/test/unusual_tbs_null_sigalg_param.pem",
@@ -9000,8 +9003,6 @@ TEST(X509Test, VerifyUnusualTBSCert) {
   // The following inputs were once accepted, and thus preserved in signature
   // verification, but we no longer parse them at all.
   const char *kInvalidPaths[] = {
-      // Empty extension instead of omitting the entire field.
-      "crypto/x509/test/unusual_tbs_empty_extension_not_omitted.pem",
       // A v1 version is explicit encoded instead of omitted as DEFAULT.
       "crypto/x509/test/unusual_tbs_v1_not_omitted.pem",
   };

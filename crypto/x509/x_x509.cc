@@ -187,13 +187,14 @@ X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
       return nullptr;
     }
+    // TODO(crbug.com/442221114, crbug.com/42290219): Empty extension lists
+    // should be rejected. Extensions is a SEQUENCE SIZE (1..MAX), so it cannot
+    // be empty. An empty extensions list is encoded by omitting the OPTIONAL
+    // field. libpki already rejects this.
     const uint8_t *p = CBS_data(&wrapper);
     ret->extensions = d2i_X509_EXTENSIONS(nullptr, &p, CBS_len(&wrapper));
     if (ret->extensions == nullptr ||
-        p != CBS_data(&wrapper) + CBS_len(&wrapper) ||
-        // Extensions is a SEQUENCE SIZE (1..MAX), so it cannot be empty. An
-        // empty extensions list is encoded by omitting the OPTIONAL field.
-        sk_X509_EXTENSION_num(ret->extensions) == 0) {
+        p != CBS_data(&wrapper) + CBS_len(&wrapper)) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
       return nullptr;
     }
