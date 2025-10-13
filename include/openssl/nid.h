@@ -4241,10 +4241,6 @@ extern "C" {
 #define NID_ML_KEM_768 970
 #define OBJ_ML_KEM_768 2L, 16L, 840L, 1L, 101L, 3L, 4L, 4L, 2L
 
-// NID_MLKEM1024 is a legacy alias for NID_ML_KEM_1024.
-// TODO(crbug.com/449751916): Migrate existing uses and remove this.
-#define NID_MLKEM1024 NID_ML_KEM_1024
-
 
 #if defined(__cplusplus)
 } /* extern C */
