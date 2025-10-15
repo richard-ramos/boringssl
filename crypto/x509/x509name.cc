@@ -269,6 +269,7 @@ X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_txt(X509_NAME_ENTRY **ne,
                                                ossl_ssize_t len) {
   ASN1_OBJECT *obj;
   X509_NAME_ENTRY *nentry;
+  std::cout << "Here A" << std::endl;
 
   obj = OBJ_txt2obj(field, 0);
   if (obj == NULL) {
@@ -277,7 +278,11 @@ X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_txt(X509_NAME_ENTRY **ne,
     ERR_add_error_data(2, "name=", field);
     return NULL;
   }
+  std::cout << "Here B" << std::endl;
+
   nentry = X509_NAME_ENTRY_create_by_OBJ(ne, obj, type, bytes, len);
+  std::cout << "Here C" << std::endl;
+
   ASN1_OBJECT_free(obj);
   return nentry;
 }
@@ -299,6 +304,7 @@ X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_OBJ(X509_NAME_ENTRY **ne,
                                                const unsigned char *bytes,
                                                ossl_ssize_t len) {
   X509_NAME_ENTRY *ret;
+  std::cout << "Here B1" << std::endl;
 
   if ((ne == NULL) || (*ne == NULL)) {
     if ((ret = X509_NAME_ENTRY_new()) == NULL) {
@@ -307,13 +313,18 @@ X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_OBJ(X509_NAME_ENTRY **ne,
   } else {
     ret = *ne;
   }
+  std::cout << "Here B2" << std::endl;
+
 
   if (!X509_NAME_ENTRY_set_object(ret, obj)) {
     goto err;
   }
+    std::cout << "Here B3" << std::endl;
+
   if (!X509_NAME_ENTRY_set_data(ret, type, bytes, len)) {
     goto err;
   }
+  std::cout << "Here B4" << std::endl;
 
   if ((ne != NULL) && (*ne == NULL)) {
     *ne = ret;
