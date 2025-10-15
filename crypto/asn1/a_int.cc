@@ -22,6 +22,7 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/span.h>
+#include <iostream>
 
 #include "../internal.h"
 #include "internal.h"
