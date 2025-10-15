@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <openssl/asn1.h>
+#include <iostream>
 
 #include <assert.h>
 #include <limits.h>
@@ -282,6 +283,8 @@ int ASN1_ENUMERATED_set(ASN1_ENUMERATED *a, long v) {
 }
 
 static int asn1_string_set_uint64(ASN1_STRING *out, uint64_t v, int type) {
+    std::cout << "YYYYYY - " << len_s << std::endl;
+
   uint8_t buf[sizeof(uint64_t)];
   CRYPTO_store_u64_be(buf, v);
   size_t leading_zeros;

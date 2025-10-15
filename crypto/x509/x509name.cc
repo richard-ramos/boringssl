@@ -269,7 +269,7 @@ X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_txt(X509_NAME_ENTRY **ne,
                                                ossl_ssize_t len) {
   ASN1_OBJECT *obj;
   X509_NAME_ENTRY *nentry;
-  std::cout << "Here A" << std::endl;
+  std::cout << "Here A - len " << len << std::endl;
 
   obj = OBJ_txt2obj(field, 0);
   if (obj == NULL) {
@@ -319,7 +319,9 @@ X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_OBJ(X509_NAME_ENTRY **ne,
   if (!X509_NAME_ENTRY_set_object(ret, obj)) {
     goto err;
   }
-    std::cout << "Here B3" << std::endl;
+
+  std::cout << "Here B3" << std::endl;
+  std::cout << "B3 - len " << len << std::endl;
 
   if (!X509_NAME_ENTRY_set_data(ret, type, bytes, len)) {
     goto err;
@@ -352,6 +354,10 @@ int X509_NAME_ENTRY_set_data(X509_NAME_ENTRY *ne, int type,
   if ((ne == NULL) || ((bytes == NULL) && (len != 0))) {
     return 0;
   }
+
+
+  std::cout << "Here setData 1 - " << len << std::endl;
+
   if ((type > 0) && (type & MBSTRING_FLAG)) {
     ASN1_STRING *dst = &ne->value;
     return ASN1_STRING_set_by_NID(&dst, bytes, len, type,
@@ -359,7 +365,11 @@ int X509_NAME_ENTRY_set_data(X509_NAME_ENTRY *ne, int type,
   }
   if (len < 0) {
     len = strlen((const char *)bytes);
+    std::cout << "Here setData 1.5 - " << len << std::endl;
   }
+
+  std::cout << "Here setData 2 - " << len << std::endl;
+
   if (!ASN1_STRING_set(&ne->value, bytes, len)) {
     return 0;
   }

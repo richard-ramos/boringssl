@@ -16,6 +16,7 @@
 
 #include <limits.h>
 #include <string.h>
+#include <iostream>
 
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
@@ -232,6 +233,8 @@ ASN1_STRING *ASN1_STRING_dup(const ASN1_STRING *str) {
 }
 
 int ASN1_STRING_set(ASN1_STRING *str, const void *_data, ossl_ssize_t len_s) {
+  std::cout << "XXXXXX - " << len_s << std::endl;
+
   const char *data = reinterpret_cast<const char *>(_data);
   size_t len;
   if (len_s < 0) {
