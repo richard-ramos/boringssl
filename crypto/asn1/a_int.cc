@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <openssl/asn1.h>
-#include <iostream>
 
 #include <assert.h>
 #include <limits.h>
@@ -83,9 +82,9 @@ int asn1_marshal_integer(CBB *out, const ASN1_INTEGER *in, CBS_ASN1_TAG tag) {
   tag = tag == 0 ? CBS_ASN1_INTEGER : tag;
   CBB child;
   uint8_t *ptr;
-  return CBB_add_asn1(out, &child, tag) &&     //
-         CBB_add_space(&child, &ptr, static_cast<size_t>(len)) &&   //
-         i2c_ASN1_INTEGER(in, &ptr) == len &&  //
+  return CBB_add_asn1(out, &child, tag) &&                         //
+         CBB_add_space(&child, &ptr, static_cast<size_t>(len)) &&  //
+         i2c_ASN1_INTEGER(in, &ptr) == len &&                      //
          CBB_flush(out);
 }
 
@@ -243,7 +242,6 @@ ASN1_INTEGER *c2i_ASN1_INTEGER(ASN1_INTEGER **out, const unsigned char **inp,
     *out = ret;
   }
   return ret;
-
 }
 
 int ASN1_INTEGER_set_int64(ASN1_INTEGER *a, int64_t v) {
@@ -283,7 +281,7 @@ int ASN1_ENUMERATED_set(ASN1_ENUMERATED *a, long v) {
 }
 
 static int asn1_string_set_uint64(ASN1_STRING *out, uint64_t v, int type) {
-    std::cout << "YYYYYY - " << len_s << std::endl;
+  std::cout << "XXXXXX - " << std::endl;
 
   uint8_t buf[sizeof(uint64_t)];
   CRYPTO_store_u64_be(buf, v);
